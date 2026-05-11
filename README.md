@@ -1,15 +1,14 @@
 # EventHub-mobile
 
-# Divisão de Tarefas — [Nome do Projeto]
+# Divisão de Tarefas — Eventhub
 
 ## Informações Gerais
 
-| Campo        | Detalhe              |
-|--------------|----------------------|
-| Projeto      | [Nome do projeto]    |
-| Equipe       | [Nome da equipe]     |
-| Período      | [Data início – fim]  |
-| Disciplina   | [Nome da disciplina] |
+| Campo        | Detalhe                  |
+|--------------|------------------------- |
+| Projeto      | EventHub                 |
+| Período      | 02/2026 a 06/2026        |
+| Disciplina   | Prog-Dispositivos-Moveis |
 
 ---
 
@@ -17,10 +16,10 @@
 
 | # | Tarefa | Responsável | Status | Prazo | Observações |
 |---|--------|-------------|--------|-------|-------------|
-| 1 | [Descrição da tarefa] | [Nome] | 🔵 A fazer | DD/MM | — |
-| 2 | [Descrição da tarefa] | [Nome] | 🟡 Em andamento | DD/MM | — |
-| 3 | [Descrição da tarefa] | [Nome] | 🟢 Concluído | DD/MM | — |
-| 4 | [Descrição da tarefa] | [Nome] | 🔴 Bloqueado | DD/MM | — |
+| 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🔵 |
+| 2 | [Descrição da tarefa] | [Nome] | 🔵 | DD/MM | — |
+| 3 | [Descrição da tarefa] | [Nome] | 🔵 | DD/MM | — |
+| 4 | [Descrição da tarefa] | [Nome] | 🔵 | DD/MM | — |
 
 ---
 
@@ -34,14 +33,3 @@
 | 🔴    | Bloqueado     |
 
 ---
-
-## Divisão por Membro
-
-| Membro | Tarefas Atribuídas | Concluídas | Pendentes |
-|--------|--------------------|------------|-----------|
-| [Nome 1] | #1, #2 | 1 | 1 |
-| [Nome 2] | #3, #4 | 0 | 2 |
-
----
-
-> Atualizado em: DD/MM/AAAA
