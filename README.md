@@ -17,9 +17,9 @@
 | # | Tarefa | Responsável | Status | Prazo | Observações |
 |---|--------|-------------|--------|-------|-------------|
 | 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🔵 |
-| 2 | Tela Home/Tela Criar Eventos/Tela Vizualizar Eventos | Cauê Vieira | 🔵 | 18/06 | — |
+| 2 | Tela Home/Tela Criar Eventos | Cauê Vieira | 🔵 | 18/06 | — |
 | 3 | Tela de Perfil | João Victor Gomes | 🔵 | | — |
-| 4 | [Descrição da tarefa] | [Nome] | 🔵 | DD/MM | — |
+| 4 | Tela Visualizar Eventos | Julia Souza | 🔵 | | — |
 
 ---
 
