@@ -18,7 +18,7 @@
 |---|--------|-------------|--------|-------|-------------|
 | 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🔵 |
 | 2 | [Descrição da tarefa] | [Nome] | 🔵 | DD/MM | — |
-| 3 | perfil | João Victor Gomes | 🔵 | | — |
+| 3 | tela de perfil | João Victor Gomes | 🔵 | | — |
 | 4 | [Descrição da tarefa] | [Nome] | 🔵 | DD/MM | — |
 
 ---
