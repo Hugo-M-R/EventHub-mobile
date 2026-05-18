@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/event.dart';
 import '../theme/eventhub_colors.dart';
+import '../widgets/bottom_nav.dart';
+import '../widgets/event_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,37 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-
-  final List<Event> _events = [
-    Event(
-      title: 'Show independente',
-      date: 'Sex, 12 abr - 20h',
-      location: 'Centro Cultural',
-      category: 'Música',
-      gradient: const LinearGradient(
-        colors: [EventHubColors.purple, EventHubColors.orange],
-      ),
-    ),
-    Event(
-      title: 'Peça de teatro local',
-      date: 'Sáb, 13 abr - 19h',
-      location: 'Teatro Municipal',
-      category: 'Teatro',
-      gradient: const LinearGradient(
-        colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
-      ),
-    ),
-    Event(
-      title: 'Feira de artesanato',
-      date: 'Dom, 14 abr - 10h',
-      location: 'Praça da Sé',
-      category: 'Feira',
-      gradient: const LinearGradient(
-        colors: [Color(0xFF4CAF50), Color(0xFF388E3C)],
-      ),
-    ),
-  ];
-
+  final List<Event> _events = Event.getMockEvents();
   final List<String> _categories = ['Hoje', 'Música', 'Teatro', 'Feira', 'Gratuito'];
   int _selectedCategoryIndex = 0;
 
@@ -63,14 +36,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   _buildCategoryFilters(),
                   const SizedBox(height: 20),
-                  ..._events.map((event) => _EventCard(event: event)),
+                  ..._events.map((event) => EventCard(event: event)),
                 ],
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: EventHubBottomNav(currentIndex: _currentIndex),
     );
   }
 
@@ -177,183 +150,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: EventHubColors.cardWhite,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        backgroundColor: EventHubColors.cardWhite,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: EventHubColors.orangeButton,
-        unselectedItemColor: EventHubColors.textSecondary,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search_outlined),
-            activeIcon: Icon(Icons.search),
-            label: 'Buscar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            activeIcon: Icon(Icons.add_circle),
-            label: 'Criar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EventCard extends StatelessWidget {
-  const _EventCard({required this.event});
-
-  final Event event;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: EventHubColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: event.gradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: EventHubColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 14,
-                        color: EventHubColors.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        event.date,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: EventHubColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.place_outlined,
-                        size: 14,
-                        color: EventHubColors.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          event.location,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: EventHubColors.textSecondary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: EventHubColors.orangeButton.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      event.category,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: EventHubColors.orangeButton,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class Event {
-  final String title;
-  final String date;
-  final String location;
-  final String category;
-  final LinearGradient gradient;
-
-  Event({
-    required this.title,
-    required this.date,
-    required this.location,
-    required this.category,
-    required this.gradient,
-  });
 }
