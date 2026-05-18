@@ -30,6 +30,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int _selectedIndex = 0; // Variável para controlar a cor do botão ativo
 
   final List<ProfileEvent> _savedEvents = [
     ProfileEvent(
@@ -57,6 +58,15 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Adiciona o listener para sincronizar o swipe na tela com o botão
+    _tabController.addListener(() {
+      if (_selectedIndex != _tabController.index) {
+        setState(() {
+          _selectedIndex = _tabController.index;
+        });
+      }
+    });
   }
 
   @override
@@ -152,32 +162,60 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildTabs() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: EventHubColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: EventHubColors.orangeButton,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        labelColor: Colors.white,
-        unselectedLabelColor: EventHubColors.textSecondary,
-        labelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        tabs: const [
-          Tab(text: 'Eventos salvos'),
-          Tab(text: 'Meus eventos'),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildCustomTabButton(
+              index: 0,
+              title: 'Eventos salvos',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildCustomTabButton(
+              index: 1,
+              title: 'Meus eventos',
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCustomTabButton({required int index, required String title}) {
+    // Usa o _selectedIndex para verificar se está ativo
+    final bool isActive = _selectedIndex == index;
+
+    return InkWell(
+      onTap: () {
+        // Atualiza a cor na hora e muda a aba
+        setState(() {
+          _selectedIndex = index;
+        });
+        _tabController.animateTo(index);
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isActive ? EventHubColors.orangeButton : EventHubColors.cardWhite,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? Colors.transparent : EventHubColors.inputBorder,
+            width: 1,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: isActive ? Colors.white : EventHubColors.textPrimary,
+          ),
+        ),
       ),
     );
   }
@@ -283,13 +321,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // TODO: Adicione aqui a lógica para limpar tokens ou estado global do usuário antes de navegar
-
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(
                     builder: (_) => const LoginScreen(),
                   ),
-                  (route) => false, // Remove todas as rotas anteriores da pilha
+                  (route) => false,
                 );
               },
               style: ElevatedButton.styleFrom(
