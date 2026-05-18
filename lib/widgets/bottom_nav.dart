@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/eventhub_colors.dart';
 import '../screens/home_screen.dart';
 import '../screens/create_event_screen.dart';
+import '../screens/profile_screen.dart';
 
 class EventHubBottomNav extends StatelessWidget {
   const EventHubBottomNav({
@@ -79,9 +80,9 @@ class EventHubBottomNav extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const CreateEventScreen()),
         );
         break;
-      case 3: // Perfil -> Home (placeholder)
+      case 3: // Perfil -> ProfileScreen
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
           (route) => false,
         );
         break;
