@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/eventhub_colors.dart';
 import '../widgets/bottom_nav.dart';
+import 'login_screen.dart';
 
 enum EventStatus {
   ativo,
@@ -113,7 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: EventHubColors.orange,
             ),
@@ -183,7 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildEventList(List<ProfileEvent> events) {
     if (events.isEmpty) {
-      return Center(
+      return const Center(
         child: Text(
           'Nenhum evento encontrado',
           style: TextStyle(
@@ -270,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         children: [
-          Text(
+          const Text(
             'Status ajuda quando a agenda muda.',
             style: TextStyle(
               fontSize: 12,
@@ -282,11 +283,13 @@ class _ProfileScreenState extends State<ProfileScreen>
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
+                // TODO: Adicione aqui a lógica para limpar tokens ou estado global do usuário antes de navegar
+
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(
-                    builder: (_) => const _PlaceholderScreen(),
+                    builder: (_) => const LoginScreen(),
                   ),
-                  (route) => false,
+                  (route) => false, // Remove todas as rotas anteriores da pilha
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -295,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: EventHubColors.inputBorder),
+                  side: const BorderSide(color: EventHubColors.inputBorder),
                 ),
               ),
               child: const Text(
@@ -308,19 +311,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Logout placeholder'),
       ),
     );
   }
