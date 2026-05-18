@@ -348,20 +348,6 @@ class _AuthTextLinkState extends State<AuthTextLink> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             padding: padding,
-            decoration: BoxDecoration(
-              color: _pressed
-                  ? EventHubColors.linkHoverFill.withValues(alpha: 0.9)
-                  : _hovered
-                      ? EventHubColors.linkHoverFill
-                      : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _hovered || _pressed
-                    ? EventHubColors.orangeButton
-                    : EventHubColors.orangeButton.withValues(alpha: 0.35),
-                width: _hovered || _pressed ? 1.5 : 1,
-              ),
-            ),
             child: Text(
               widget.label,
               style: TextStyle(
