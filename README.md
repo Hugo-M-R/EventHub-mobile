@@ -59,7 +59,7 @@ docker compose run --rm -it --service-ports web
 |---|--------|-------------|--------|-------|-------------|
 | 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🟡 | | Login implementado; cadastro e recuperar senha em breve |
 | 2 | Tela Home/Tela Criar Eventos | Cauê Vieira | 🟢 | 18/05 | — |
-| 3 | Tela de Perfil | João Victor Gomes | 🔵 | | — |
+| 3 | Tela de Perfil | João Victor Gomes | 🟢 | | — |
 | 4 | Tela Visualizar Eventos | Julia Souza | 🔵 | | — |
 
 ---
