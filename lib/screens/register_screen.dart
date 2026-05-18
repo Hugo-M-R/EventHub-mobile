@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../session/app_session.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/auth_widgets.dart';
-import 'home_placeholder.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -35,7 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       fullName: _nameController.text,
     );
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomePlaceholder()),
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
       (_) => false,
     );
   }

@@ -4,7 +4,7 @@ import '../session/app_session.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/auth_widgets.dart';
 import 'forgot_password_screen.dart';
-import 'home_placeholder.dart';
+import 'home_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() {
     AppSession.loginAsUser(_emailController.text);
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomePlaceholder()),
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
     );
   }
 
