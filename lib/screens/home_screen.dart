@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/category_filter_bar.dart';
 import '../widgets/event_card.dart';
+import '../widgets/event_search_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,11 +17,34 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final List<Event> _events = Event.getMockEvents();
-  final List<String> _categories = ['Hoje', 'Música', 'Teatro', 'Feira', 'Gratuito'];
-  int _selectedCategoryIndex = 0;
+  final TextEditingController _searchController = TextEditingController();
+
+  static const List<String> _categories = [
+    'Hoje',
+    'Música',
+    'Teatro',
+    'Feira',
+    'Gratuito',
+  ];
+
+  String _selectedCategory = _categories.first;
+  String _searchQuery = '';
+
+  List<Event> get _filteredEvents {
+    final byCategory = filterEventsByCategory(_events, _selectedCategory);
+    return filterEventsByQuery(byCategory, _searchQuery);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final filteredEvents = _filteredEvents;
+
     return Scaffold(
       backgroundColor: EventHubColors.scaffoldBg,
       body: SafeArea(
@@ -30,13 +55,27 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                 children: [
-                  _buildSearchBar(),
+                  EventSearchBar(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() => _searchQuery = value);
+                    },
+                  ),
                   const SizedBox(height: 24),
                   _buildSectionTitle('Eventos hoje até 5 km'),
                   const SizedBox(height: 16),
-                  _buildCategoryFilters(),
+                  CategoryFilterBar(
+                    categories: _categories,
+                    selectedCategory: _selectedCategory,
+                    onCategorySelected: (category) {
+                      setState(() => _selectedCategory = category);
+                    },
+                  ),
                   const SizedBox(height: 20),
-                  ..._events.map((event) => EventCard(event: event)),
+                  if (filteredEvents.isEmpty)
+                    _buildEmptyState()
+                  else
+                    ...filteredEvents.map((event) => EventCard(event: event)),
                 ],
               ),
             ),
@@ -53,12 +92,16 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'EventHub',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: EventHubColors.textPrimary,
+          const SizedBox(
+            width: double.infinity,
+            child: Text(
+              'EventHub',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: EventHubColors.textPrimary,
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -74,34 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: EventHubColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EventHubColors.inputBorder),
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Buscar eventos, artistas ou bairros...',
-          hintStyle: TextStyle(
-            color: EventHubColors.textSecondary,
-            fontSize: 14,
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            color: EventHubColors.textSecondary,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -113,40 +128,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCategoryFilters() {
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        itemBuilder: (context, index) {
-          final isSelected = index == _selectedCategoryIndex;
-          return Padding(
-            padding: EdgeInsets.only(right: index < _categories.length - 1 ? 12 : 0),
-            child: FilterChip(
-              label: Text(_categories[index]),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedCategoryIndex = index;
-                });
-              },
-              backgroundColor: EventHubColors.cardWhite,
-              selectedColor: EventHubColors.orangeButton,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : EventHubColors.textPrimary,
-                fontSize: 14,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected ? EventHubColors.orangeButton : EventHubColors.inputBorder,
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-          );
-        },
+  Widget _buildEmptyState() {
+    final message = _searchQuery.trim().isNotEmpty
+        ? 'Nenhum evento encontrado para "${_searchQuery.trim()}".'
+        : 'Nenhum evento encontrado para "$_selectedCategory".';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Center(
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: EventHubColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
