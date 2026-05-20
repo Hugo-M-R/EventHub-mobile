@@ -12,6 +12,7 @@ class Event {
   final bool isFree;
   final String? artist;
   final String? neighborhood;
+  final String? description;
 
   Event({
     required this.title,
@@ -23,6 +24,7 @@ class Event {
     this.isFree = false,
     this.artist,
     this.neighborhood,
+    this.description,
   });
 
   bool matchesQuery(String normalizedQuery) {
@@ -48,6 +50,7 @@ class Event {
         category: 'Música',
         artist: 'Banda Aurora',
         neighborhood: 'Centro',
+        description: 'Uma noite especial com a Banda Aurora, trazendo seus maiores sucessos e músicas inéditas do novo álbum. Venha curtir ao vivo!',
         gradient: const LinearGradient(
           colors: [EventHubColors.purple, EventHubColors.orange],
         ),
@@ -59,6 +62,7 @@ class Event {
         category: 'Teatro',
         artist: 'Companhia Luz',
         neighborhood: 'Jardins',
+        description: 'A Companhia Luz apresenta sua nova montagem teatral, explorando temas contemporâneos com linguagem acessível e impactante.',
         isToday: true,
         gradient: const LinearGradient(
           colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
@@ -70,6 +74,7 @@ class Event {
         location: 'Praça da Sé',
         category: 'Feira',
         neighborhood: 'Sé',
+        description: 'Feira com mais de 50 expositores locais. Encontre peças únicas de cerâmica, tecido, bijuteria e muito mais.',
         isToday: true,
         gradient: const LinearGradient(
           colors: [Color(0xFF4CAF50), Color(0xFF388E3C)],
@@ -82,6 +87,7 @@ class Event {
         category: 'Música',
         artist: 'Coletivo Verso',
         neighborhood: 'Bela Vista',
+        description: 'Sarau gratuito e aberto ao público com poesia, música e performance. Traga sua cadeira e aproveite a tarde.',
         isToday: true,
         isFree: true,
         gradient: const LinearGradient(

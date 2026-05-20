@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/event.dart';
+import '../screens/event_detail_screen.dart';
 import '../theme/eventhub_colors.dart';
 
 class EventCard extends StatelessWidget {
@@ -10,6 +11,16 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => EventDetailScreen(event: event)),
+      ),
+      child: _buildCard(),
+    );
+  }
+
+  Widget _buildCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
