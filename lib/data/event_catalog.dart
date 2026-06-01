@@ -1,212 +1,140 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/event.dart';
 import '../models/event_profile_status.dart';
-/// Catálogo único de eventos — mesma lista em Home, Buscar e Perfil.
+import '../services/event_service.dart';
+
+/// Catálogo de eventos sincronizado com Firestore (Home, Buscar, Perfil, CRUD).
 abstract final class EventCatalog {
   /// Incrementado a cada alteração para atualizar listas nas telas.
   static final ValueNotifier<int> version = ValueNotifier(0);
 
-  static final List<Event> events = _buildEvents();
+  static final List<Event> events = [];
 
-  static final List<ProfileEventEntry> savedEvents = [
-    const ProfileEventEntry(
-      eventId: 'evt_jazz',
-      status: EventProfileStatus.ativo,
-    ),
-    const ProfileEventEntry(
-      eventId: 'evt_oficina',
-      status: EventProfileStatus.alterado,
-    ),
-    const ProfileEventEntry(
-      eventId: 'evt_cinema',
-      status: EventProfileStatus.cancelado,
-    ),
-  ];
+  static bool isLoading = true;
+  static String? loadError;
 
-  static final List<ProfileEventEntry> myEvents = [
-    const ProfileEventEntry(
-      eventId: 'evt_show',
-      status: EventProfileStatus.ativo,
-    ),
-  ];
+  static StreamSubscription<List<Event>>? _subscription;
+
+  /// Eventos marcados com "Tenho interesse" (sessão atual).
+  static final List<ProfileEventEntry> savedEvents = [];
+
+  static bool isSaved(String eventId) {
+    return savedEvents.any((entry) => entry.eventId == eventId);
+  }
+
+  static bool isOwnedByCurrentUser(Event event) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return uid != null && event.createdBy == uid;
+  }
+
+  static void saveInterest(String eventId) {
+    if (isSaved(eventId)) return;
+    savedEvents.add(
+      ProfileEventEntry(
+        eventId: eventId,
+        status: EventProfileStatus.ativo,
+      ),
+    );
+    _notifyChange();
+  }
+
+  static void removeSavedInterest(String eventId) {
+    savedEvents.removeWhere((entry) => entry.eventId == eventId);
+    _notifyChange();
+  }
+
+  static Future<void> initialize() async {
+    await _subscription?.cancel();
+    isLoading = true;
+    loadError = null;
+    _notifyChange();
+
+    _subscription = EventService.instance.watchEvents().listen(
+      (list) {
+        events
+          ..clear()
+          ..addAll(list);
+        isLoading = false;
+        loadError = null;
+        _notifyChange();
+      },
+      onError: (Object error) {
+        isLoading = false;
+        loadError = error.toString();
+        _notifyChange();
+      },
+    );
+  }
+
+  static Future<void> dispose() async {
+    await _subscription?.cancel();
+    _subscription = null;
+  }
 
   static Event byId(String id) {
     return events.firstWhere((event) => event.id == id);
   }
 
-  /// Eventos que o usuário pode editar ou excluir (meus eventos).
+  /// Eventos que o usuário autenticado pode editar ou excluir.
   static List<Event> get editableEvents {
-    return myEvents.map((entry) => byId(entry.eventId)).toList();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return [];
+    return events.where((event) => event.createdBy == uid).toList();
   }
 
   static List<Event> eventsInCategory(String category) {
     return events.where((event) => event.category == category).toList();
   }
 
-  static String nextId() => 'evt_${DateTime.now().millisecondsSinceEpoch}';
+  static List<ProfileEventEntry> get myEvents {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return [];
 
-  static void addEvent(Event event) {
-    events.add(event);
-    final alreadyMine = myEvents.any((entry) => entry.eventId == event.id);
-    if (!alreadyMine) {
-      myEvents.add(
-        ProfileEventEntry(
-          eventId: event.id,
-          status: EventProfileStatus.ativo,
-        ),
-      );
-    }
-    _notifyChange();
+    return events
+        .where((event) => event.createdBy == uid)
+        .map(
+          (event) => ProfileEventEntry(
+            eventId: event.id,
+            status: event.profileStatus,
+          ),
+        )
+        .toList();
   }
 
-  static void updateEvent(Event updated) {
-    final index = events.indexWhere((event) => event.id == updated.id);
-    if (index == -1) return;
-    events[index] = updated;
+  static String nextId() => EventService.instance.newEventId();
 
-    final hasStatus = myEvents.any((entry) => entry.eventId == updated.id);
-    if (hasStatus) {
-      _markAsAlterado(updated.id);
-    }
-    _notifyChange();
+  static Future<void> addEvent(
+    Event event, {
+    Uint8List? coverBytes,
+  }) async {
+    await EventService.instance.createEvent(event, coverBytes: coverBytes);
   }
 
-  static void removeEvent(String id) {
-    events.removeWhere((event) => event.id == id);
-    myEvents.removeWhere((entry) => entry.eventId == id);
+  static Future<void> updateEvent(
+    Event updated, {
+    Uint8List? coverBytes,
+    bool removeCover = false,
+  }) async {
+    await EventService.instance.updateEvent(
+      updated,
+      coverBytes: coverBytes,
+      removeCover: removeCover,
+    );
+  }
+
+  static Future<void> removeEvent(String id) async {
+    final event = byId(id);
+    await EventService.instance.deleteEvent(event);
     savedEvents.removeWhere((entry) => entry.eventId == id);
     _notifyChange();
   }
 
   static void _notifyChange() {
     version.value++;
-  }
-
-  static void _markAsAlterado(String eventId) {
-    final index = myEvents.indexWhere((entry) => entry.eventId == eventId);
-    if (index == -1) return;
-    final current = myEvents[index];
-    if (current.status == EventProfileStatus.cancelado) return;
-    myEvents[index] = ProfileEventEntry(
-      eventId: eventId,
-      status: EventProfileStatus.alterado,
-    );
-  }
-
-  static List<Event> _buildEvents() {
-    final year = DateTime.now().year;
-
-    final showDate = DateTime(year, 4, 12, 20);
-    final teatroDate = _todayAt(19);
-    final feiraDate = _todayAt(10);
-    final sarauDate = _todayAt(18);
-    final jazzDate = _daysFromNow(7, 20);
-    final oficinaDate = _daysFromNow(3, 14);
-    final cinemaDate = _daysFromNow(5, 20);
-
-    return [
-      Event(
-        id: 'evt_show',
-        title: 'Show independente',
-        date: Event.formatDisplayDate(showDate),
-        location: 'Centro Cultural',
-        category: 'Música',
-        artist: 'Banda Aurora',
-        neighborhood: 'Centro',
-        description:
-            'Uma noite especial com a Banda Aurora, trazendo seus maiores sucessos e músicas inéditas do novo álbum. Venha curtir ao vivo!',
-        startsAt: showDate,
-        gradient: Event.gradientForCategory('Música'),
-      ),
-      Event(
-        id: 'evt_teatro',
-        title: 'Peça de teatro local',
-        date: Event.formatDisplayDate(teatroDate),
-        location: 'Teatro Municipal',
-        category: 'Teatro',
-        artist: 'Companhia Luz',
-        neighborhood: 'Jardins',
-        description:
-            'A Companhia Luz apresenta sua nova montagem teatral, explorando temas contemporâneos com linguagem acessível e impactante.',
-        startsAt: teatroDate,
-        gradient: Event.gradientForCategory('Teatro'),
-      ),
-      Event(
-        id: 'evt_feira',
-        title: 'Feira de artesanato',
-        date: Event.formatDisplayDate(feiraDate, endHour: 18),
-        location: 'Praça da Sé',
-        category: 'Feira',
-        neighborhood: 'Sé',
-        description:
-            'Feira com mais de 50 expositores locais. Encontre peças únicas de cerâmica, tecido, bijuteria e muito mais.',
-        startsAt: feiraDate,
-        gradient: Event.gradientForCategory('Feira'),
-      ),
-      Event(
-        id: 'evt_sarau',
-        title: 'Sarau na praça',
-        date: Event.formatDisplayDate(sarauDate),
-        location: 'Praça Central',
-        category: 'Música',
-        artist: 'Coletivo Verso',
-        neighborhood: 'Bela Vista',
-        description:
-            'Sarau gratuito e aberto ao público com poesia, música e performance. Traga sua cadeira e aproveite a tarde.',
-        startsAt: sarauDate,
-        isFree: true,
-        gradient: Event.gradientForCategory('Música'),
-      ),
-      Event(
-        id: 'evt_jazz',
-        title: 'Jazz na praça',
-        date: Event.formatDisplayDate(jazzDate),
-        location: 'Praça das Artes',
-        category: 'Música',
-        artist: 'Trio Blue Note',
-        neighborhood: 'Pinheiros',
-        description:
-            'Apresentação gratuita de jazz ao ar livre com o Trio Blue Note.',
-        startsAt: jazzDate,
-        isFree: true,
-        gradient: Event.gradientForCategory('Música'),
-      ),
-      Event(
-        id: 'evt_oficina',
-        title: 'Oficina de cerâmica',
-        date: Event.formatDisplayDate(oficinaDate),
-        location: 'Ateliê Coletivo',
-        category: 'Workshop',
-        neighborhood: 'Vila Madalena',
-        description:
-            'Oficina prática de modelagem e esmaltação para iniciantes. Materiais inclusos.',
-        startsAt: oficinaDate,
-        gradient: Event.gradientForCategory('Workshop'),
-      ),
-      Event(
-        id: 'evt_cinema',
-        title: 'Cinema ao ar livre',
-        date: Event.formatDisplayDate(cinemaDate),
-        location: 'Parque Ibirapuera',
-        category: 'Cinema',
-        neighborhood: 'Moema',
-        description:
-            'Sessão especial ao pôr do sol com filme brasileiro premiado.',
-        startsAt: cinemaDate,
-        gradient: Event.gradientForCategory('Cinema'),
-      ),
-    ];
-  }
-
-  static DateTime _todayAt(int hour, [int minute = 0]) {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day, hour, minute);
-  }
-
-  static DateTime _daysFromNow(int days, int hour, [int minute = 0]) {
-    final now = DateTime.now();
-    final day = DateTime(now.year, now.month, now.day).add(Duration(days: days));
-    return DateTime(day.year, day.month, day.day, hour, minute);
   }
 }

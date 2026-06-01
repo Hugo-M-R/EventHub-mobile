@@ -11,7 +11,9 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/select_event_sheet.dart';
 
 class CreateEventScreen extends StatefulWidget {
-  const CreateEventScreen({super.key});
+  const CreateEventScreen({super.key, this.eventToEdit});
+
+  final Event? eventToEdit;
 
   @override
   State<CreateEventScreen> createState() => _CreateEventScreenState();
@@ -30,8 +32,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final int _currentIndex = 2;
   String? _editingEventId;
   Uint8List? _coverImageBytes;
+  bool _coverRemoved = false;
+  bool _isSaving = false;
 
   bool get _isEditing => _editingEventId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final event = widget.eventToEdit;
+    if (event != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadEventIntoForm(event);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -74,14 +89,17 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     try {
       final file = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1600,
-        imageQuality: 85,
+        maxWidth: 1024,
+        imageQuality: 75,
       );
       if (file == null) return;
 
       final bytes = await file.readAsBytes();
       if (!mounted) return;
-      setState(() => _coverImageBytes = bytes);
+      setState(() {
+        _coverImageBytes = bytes;
+        _coverRemoved = false;
+      });
     } catch (_) {
       if (!mounted) return;
       _showMessage('Não foi possível carregar a imagem.');
@@ -89,7 +107,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   void _removeImage() {
-    setState(() => _coverImageBytes = null);
+    setState(() {
+      _coverImageBytes = null;
+      _coverRemoved = true;
+    });
   }
 
   void _selectCategory() {
@@ -152,6 +173,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     if (startsAt == null) return null;
 
     final category = _categoryController.text.trim();
+
     return Event(
       id: id,
       title: _nameController.text.trim(),
@@ -161,11 +183,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       description: _descriptionController.text.trim(),
       startsAt: startsAt,
       gradient: Event.gradientForCategory(category),
-      coverImageBytes: _coverImageBytes,
+      coverImageBytes: _coverRemoved ? null : _coverImageBytes,
+      createdBy: _isEditing ? EventCatalog.byId(id).createdBy : null,
     );
   }
 
-  void _saveEvent() {
+  Future<void> _saveEvent() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
 
     final startsAt = _parseStartsAt();
@@ -174,21 +198,38 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       return;
     }
 
-    if (_isEditing) {
-      final existing = EventCatalog.byId(_editingEventId!);
-      final updated = _buildEventFromForm(id: existing.id);
-      if (updated == null) return;
-      EventCatalog.updateEvent(updated);
-      _showMessage('Evento atualizado com sucesso.');
-    } else {
-      final created = _buildEventFromForm(id: EventCatalog.nextId());
-      if (created == null) return;
-      EventCatalog.addEvent(created);
-      _showMessage('Evento salvo com sucesso.');
-    }
+    setState(() => _isSaving = true);
 
-    _clearForm();
-    Navigator.pop(context);
+    try {
+      if (_isEditing) {
+        final existing = EventCatalog.byId(_editingEventId!);
+        final updated = _buildEventFromForm(id: existing.id);
+        if (updated == null) return;
+
+        await EventCatalog.updateEvent(
+          updated,
+          coverBytes: _coverRemoved ? null : _coverImageBytes,
+          removeCover: _coverRemoved,
+        );
+        if (!mounted) return;
+        _showMessage('Evento atualizado com sucesso.');
+      } else {
+        final created = _buildEventFromForm(id: EventCatalog.nextId());
+        if (created == null) return;
+
+        await EventCatalog.addEvent(created, coverBytes: _coverImageBytes);
+        if (!mounted) return;
+        _showMessage('Evento salvo com sucesso.');
+      }
+
+      _clearForm();
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('Não foi possível salvar o evento. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   Future<void> _editEvent() async {
@@ -201,12 +242,29 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _deleteEvent() async {
+    if (_isSaving) return;
+
+    Future<void> performDelete(Event event) async {
+      setState(() => _isSaving = true);
+      try {
+        await EventCatalog.removeEvent(event.id);
+        if (!mounted) return;
+        _showMessage('Evento excluído.');
+        if (_editingEventId == event.id) {
+          _clearForm();
+        }
+      } catch (_) {
+        if (!mounted) return;
+        _showMessage('Não foi possível excluir o evento.');
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    }
+
     if (_isEditing) {
       final confirmed = await _confirmDelete(EventCatalog.byId(_editingEventId!));
       if (confirmed != true || !mounted) return;
-      EventCatalog.removeEvent(_editingEventId!);
-      _showMessage('Evento excluído.');
-      _clearForm();
+      await performDelete(EventCatalog.byId(_editingEventId!));
       return;
     }
 
@@ -219,11 +277,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     final confirmed = await _confirmDelete(selected);
     if (confirmed != true || !mounted) return;
 
-    EventCatalog.removeEvent(selected.id);
-    if (_editingEventId == selected.id) {
-      _clearForm();
-    }
-    _showMessage('Evento excluído.');
+    await performDelete(selected);
   }
 
   Future<bool?> _confirmDelete(Event event) {
@@ -261,6 +315,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       _timeController.text =
           '${event.startsAt.hour}:${event.startsAt.minute.toString().padLeft(2, '0')}';
       _coverImageBytes = event.coverImageBytes;
+      _coverRemoved = false;
     });
   }
 
@@ -268,6 +323,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     setState(() {
       _editingEventId = null;
       _coverImageBytes = null;
+      _coverRemoved = false;
       _nameController.clear();
       _categoryController.clear();
       _dateController.clear();
@@ -599,8 +655,28 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: EventHubColors.inputBorder),
             ),
-            child: _coverImageBytes == null
-                ? Column(
+            child: _buildCoverPreview()
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: _buildCoverImage(),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black54,
+                          ),
+                          onPressed: _removeImage,
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
@@ -617,34 +693,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         ),
                       ),
                     ],
-                  )
-                : Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.memory(
-                          _coverImageBytes!,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: IconButton.filled(
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black54,
-                          ),
-                          onPressed: _removeImage,
-                          icon: const Icon(Icons.close, color: Colors.white),
-                        ),
-                      ),
-                    ],
                   ),
           ),
         ),
       ],
     );
+  }
+
+  bool _buildCoverPreview() {
+    return !_coverRemoved && _coverImageBytes != null;
+  }
+
+  Widget _buildCoverImage() {
+    return Image.memory(_coverImageBytes!, fit: BoxFit.cover);
   }
 
   Widget _buildActionButtons() {
@@ -654,7 +715,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: _saveEvent,
+            onPressed: _isSaving ? null : _saveEvent,
             style: ElevatedButton.styleFrom(
               backgroundColor: EventHubColors.orangeButton,
               foregroundColor: Colors.white,
@@ -663,13 +724,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
               elevation: 0,
             ),
-            child: Text(
-              _isEditing ? 'Salvar alterações' : 'Salvar evento',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    _isEditing ? 'Salvar alterações' : 'Salvar evento',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
         ),
         const SizedBox(height: 12),
@@ -677,7 +747,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _editEvent,
+                onPressed: _isSaving ? null : _editEvent,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: EventHubColors.textPrimary,
                   side: const BorderSide(color: EventHubColors.inputBorder),
@@ -691,7 +761,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton(
-                onPressed: _deleteEvent,
+                onPressed: _isSaving ? null : _deleteEvent,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red),

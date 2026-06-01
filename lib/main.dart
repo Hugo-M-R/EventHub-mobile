@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'app/eventhub_app.dart';
 import 'config/env_config.dart';
+import 'data/event_catalog.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,8 @@ Future<void> main() async {
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(options: EnvConfig.firebaseOptions);
   }
+
+  await EventCatalog.initialize();
 
   runApp(const EventHubApp());
 }

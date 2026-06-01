@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/event.dart';
 
-/// Miniatura do evento: imagem enviada pelo organizador ou gradiente padrão.
+/// Miniatura do evento: imagem do Firestore (bytes) ou gradiente padrão.
 class EventCoverThumbnail extends StatelessWidget {
   const EventCoverThumbnail({
     super.key,
@@ -30,10 +30,7 @@ class EventCoverThumbnail extends StatelessWidget {
         width: width,
         height: height,
         child: bytes != null
-            ? Image.memory(
-                bytes,
-                fit: BoxFit.cover,
-              )
+            ? Image.memory(bytes, fit: BoxFit.cover)
             : DecoratedBox(
                 decoration: BoxDecoration(gradient: event.gradient),
               ),

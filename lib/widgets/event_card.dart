@@ -12,20 +12,22 @@ class EventCard extends StatelessWidget {
     super.key,
     required this.event,
     this.profileStatus,
+    this.onRemoveFromSaved,
   });
 
   final Event event;
   final EventProfileStatus? profileStatus;
+  final VoidCallback? onRemoveFromSaved;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => openEventDetail(context, event),
-      child: _buildCard(),
+      child: _buildCard(context),
     );
   }
 
-  Widget _buildCard() {
+  Widget _buildCard(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -129,6 +131,15 @@ class EventCard extends StatelessWidget {
               ),
             ),
           ),
+          if (onRemoveFromSaved != null)
+            IconButton(
+              onPressed: onRemoveFromSaved,
+              tooltip: 'Remover dos salvos',
+              icon: Icon(
+                Icons.bookmark_remove_outlined,
+                color: EventHubColors.textSecondary,
+              ),
+            ),
         ],
       ),
     );

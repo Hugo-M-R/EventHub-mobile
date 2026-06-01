@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/eventhub_colors.dart';
+import 'event_profile_status.dart';
 
 class Event {
   final String id;
@@ -17,6 +20,8 @@ class Event {
   final String? neighborhood;
   final String? description;
   final Uint8List? coverImageBytes;
+  final String? createdBy;
+  final EventProfileStatus profileStatus;
 
   Event({
     required this.id,
@@ -31,7 +36,80 @@ class Event {
     this.neighborhood,
     this.description,
     this.coverImageBytes,
+    this.createdBy,
+    this.profileStatus = EventProfileStatus.ativo,
   });
+
+  factory Event.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    final startsAt = (data['startsAt'] as Timestamp).toDate();
+    final category = data['category'] as String;
+
+    return Event(
+      id: doc.id,
+      title: data['title'] as String,
+      date: Event.formatDisplayDate(startsAt),
+      location: data['location'] as String,
+      category: category,
+      gradient: Event.gradientForCategory(category),
+      startsAt: startsAt,
+      isFree: data['isFree'] as bool? ?? false,
+      artist: data['artist'] as String?,
+      neighborhood: data['neighborhood'] as String?,
+      description: data['description'] as String?,
+      coverImageBytes: _decodeCover(data['coverImageBase64'] as String?),
+      createdBy: data['createdBy'] as String?,
+      profileStatus: _profileStatusFromString(data['profileStatus'] as String?),
+    );
+  }
+
+  Map<String, dynamic> toFirestore({
+    required String createdBy,
+    String? coverImageBase64,
+    EventProfileStatus? profileStatus,
+    bool isCreate = false,
+    bool deleteCoverImage = false,
+    bool includeCover = true,
+  }) {
+    final status = profileStatus ?? this.profileStatus;
+
+    return {
+      'title': title,
+      'location': location,
+      'category': category,
+      'startsAt': Timestamp.fromDate(startsAt),
+      'isFree': isFree,
+      if (artist != null) 'artist': artist,
+      if (neighborhood != null) 'neighborhood': neighborhood,
+      if (description != null && description!.isNotEmpty) 'description': description,
+      if (includeCover) ...{
+        if (deleteCoverImage)
+          'coverImageBase64': FieldValue.delete()
+        else if (coverImageBase64 != null)
+          'coverImageBase64': coverImageBase64,
+      },
+      'createdBy': createdBy,
+      'profileStatus': status.name,
+      if (isCreate) 'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  static Uint8List? _decodeCover(String? base64) {
+    if (base64 == null || base64.isEmpty) return null;
+    try {
+      return base64Decode(base64);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static EventProfileStatus _profileStatusFromString(String? value) {
+    return EventProfileStatus.values.firstWhere(
+      (status) => status.name == value,
+      orElse: () => EventProfileStatus.ativo,
+    );
+  }
 
   Event copyWith({
     String? id,
@@ -46,6 +124,8 @@ class Event {
     String? neighborhood,
     String? description,
     Uint8List? coverImageBytes,
+    String? createdBy,
+    EventProfileStatus? profileStatus,
     bool clearCoverImage = false,
   }) {
     return Event(
@@ -63,6 +143,8 @@ class Event {
       coverImageBytes: clearCoverImage
           ? null
           : (coverImageBytes ?? this.coverImageBytes),
+      createdBy: createdBy ?? this.createdBy,
+      profileStatus: profileStatus ?? this.profileStatus,
     );
   }
 

@@ -10,7 +10,10 @@ import '../widgets/auth_gate.dart';
 import '../widgets/event_card.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.initialTabIndex = 0});
+
+  /// `0` = Eventos salvos, `1` = Meus eventos.
+  final int initialTabIndex;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -27,7 +30,12 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _selectedIndex = widget.initialTabIndex.clamp(0, 1);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: _selectedIndex,
+    );
     EventCatalog.version.addListener(_onCatalogChanged);
 
     _tabController.addListener(() {
@@ -64,7 +72,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildEventList(_savedEvents),
+                  _buildEventList(_savedEvents, showRemoveFromSaved: true),
                   _buildEventList(_myEvents),
                 ],
               ),
@@ -192,7 +200,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildEventList(List<ProfileEventEntry> entries) {
+  Widget _buildEventList(
+    List<ProfileEventEntry> entries, {
+    bool showRemoveFromSaved = false,
+  }) {
     if (entries.isEmpty) {
       return const Center(
         child: Text(
@@ -213,8 +224,18 @@ class _ProfileScreenState extends State<ProfileScreen>
         return EventCard(
           event: EventCatalog.byId(entry.eventId),
           profileStatus: entry.status,
+          onRemoveFromSaved: showRemoveFromSaved
+              ? () => _removeFromSaved(entry.eventId)
+              : null,
         );
       },
+    );
+  }
+
+  void _removeFromSaved(String eventId) {
+    EventCatalog.removeSavedInterest(eventId);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Removido dos eventos salvos.')),
     );
   }
 

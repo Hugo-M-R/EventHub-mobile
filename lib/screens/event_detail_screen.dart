@@ -3,15 +3,24 @@ import 'package:flutter/material.dart';
 import '../data/event_catalog.dart';
 import '../models/event.dart';
 import '../navigation/event_navigation.dart';
+import '../screens/create_event_screen.dart';
+import '../screens/profile_screen.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/event_card.dart';
 import '../widgets/event_cover_thumbnail.dart';
 
-class EventDetailScreen extends StatelessWidget {
+class EventDetailScreen extends StatefulWidget {
   const EventDetailScreen({super.key, required this.event});
 
   final Event event;
+
+  @override
+  State<EventDetailScreen> createState() => _EventDetailScreenState();
+}
+
+class _EventDetailScreenState extends State<EventDetailScreen> {
+  Event get event => widget.event;
 
   String get _locationText {
     if (event.neighborhood != null) {
@@ -19,6 +28,10 @@ class EventDetailScreen extends StatelessWidget {
     }
     return event.location;
   }
+
+  bool get _isOwnEvent => EventCatalog.isOwnedByCurrentUser(event);
+
+  bool get _isSaved => EventCatalog.isSaved(event.id);
 
   @override
   Widget build(BuildContext context) {
@@ -82,9 +95,23 @@ class EventDetailScreen extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  _buildPrimaryButton(),
-                  const SizedBox(height: 12),
-                  _buildSecondaryButton(),
+                  if (_isOwnEvent) ...[
+                    _buildEditButton(context),
+                    const SizedBox(height: 12),
+                    _buildDeleteButton(context),
+                    if (_isSaved) ...[
+                      const SizedBox(height: 12),
+                      _buildRemoveFromSavedButton(context),
+                    ],
+                  ] else if (_isSaved) ...[
+                    _buildRemoveFromSavedButton(context),
+                    const SizedBox(height: 12),
+                    _buildSecondaryButton(),
+                  ] else ...[
+                    _buildPrimaryButton(context),
+                    const SizedBox(height: 12),
+                    _buildSecondaryButton(),
+                  ],
                   const SizedBox(height: 16),
                   GestureDetector(
                     onTap: () => openSimilarEvents(context, event),
@@ -174,12 +201,51 @@ class EventDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPrimaryButton() {
+  void _onInterestPressed(BuildContext context) {
+    EventCatalog.saveInterest(event.id);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const ProfileScreen(initialTabIndex: 0),
+      ),
+      (route) => false,
+    );
+  }
+
+  void _onRemoveFromSaved(BuildContext context) {
+    EventCatalog.removeSavedInterest(event.id);
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Removido dos eventos salvos.')),
+    );
+  }
+
+  Widget _buildRemoveFromSavedButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: () => _onRemoveFromSaved(context),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: EventHubColors.textPrimary,
+          side: const BorderSide(color: EventHubColors.inputBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: const Text(
+          'Remover dos salvos',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () => _onInterestPressed(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: EventHubColors.orangeButton,
           foregroundColor: Colors.white,
@@ -211,6 +277,99 @@ class EventDetailScreen extends StatelessWidget {
         ),
         child: const Text(
           'Compartilhar',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  void _openEdit(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateEventScreen(eventToEdit: event),
+      ),
+    );
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir evento'),
+        content: Text(
+          'Excluir "${event.title}"? Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await EventCatalog.removeEvent(event.id);
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Evento excluído.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível excluir o evento.')),
+      );
+    }
+  }
+
+  Widget _buildEditButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: () => _openEdit(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: EventHubColors.orangeButton,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          elevation: 0,
+        ),
+        child: const Text(
+          'Editar evento',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: () => _confirmAndDelete(context),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.red,
+          side: const BorderSide(color: Colors.red),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: const Text(
+          'Excluir evento',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),

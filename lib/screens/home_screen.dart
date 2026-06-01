@@ -84,7 +84,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   const SizedBox(height: 20),
-                  if (filteredEvents.isEmpty)
+                  if (EventCatalog.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 48),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (EventCatalog.loadError != null)
+                    _buildErrorState()
+                  else if (filteredEvents.isEmpty)
                     _buildEmptyState()
                   else
                     ...filteredEvents.map((event) => EventCard(event: event)),
@@ -143,13 +150,31 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildEmptyState() {
     final message = _searchQuery.trim().isNotEmpty
         ? 'Nenhum evento encontrado para "${_searchQuery.trim()}".'
-        : 'Nenhum evento encontrado para "$_selectedCategory".';
+        : EventCatalog.events.isEmpty
+            ? 'Nenhum evento cadastrado ainda. Crie o primeiro!'
+            : 'Nenhum evento encontrado para "$_selectedCategory".';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Center(
         child: Text(
           message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: EventHubColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Center(
+        child: Text(
+          'Não foi possível carregar os eventos. Verifique sua conexão e as regras do Firestore.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,

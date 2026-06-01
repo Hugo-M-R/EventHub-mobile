@@ -6,6 +6,7 @@ App Flutter do projeto **EventHub** (repositório principal no GitHub).
 
 ```bash
 cd EventHub-mobile
+cp .env.example .env   # preencha com o app Web do Firebase Console
 flutter pub get
 flutter run
 ```
