@@ -1,24 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/event_catalog.dart';
+import '../models/event_profile_status.dart';
+import '../session/app_session.dart';
+import '../services/auth_service.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/bottom_nav.dart';
-import 'login_screen.dart';
-
-enum EventStatus {
-  ativo,
-  alterado,
-  cancelado,
-}
-
-class ProfileEvent {
-  final String title;
-  final EventStatus status;
-
-  ProfileEvent({
-    required this.title,
-    required this.status,
-  });
-}
+import '../widgets/auth_gate.dart';
+import '../widgets/event_card.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -30,36 +19,17 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _selectedIndex = 0; // Variável para controlar a cor do botão ativo
+  int _selectedIndex = 0;
 
-  final List<ProfileEvent> _savedEvents = [
-    ProfileEvent(
-      title: 'Jazz na praça',
-      status: EventStatus.ativo,
-    ),
-    ProfileEvent(
-      title: 'Oficina de cerâmica',
-      status: EventStatus.alterado,
-    ),
-    ProfileEvent(
-      title: 'Cinema ao ar livre',
-      status: EventStatus.cancelado,
-    ),
-  ];
-
-  final List<ProfileEvent> _myEvents = [
-    ProfileEvent(
-      title: 'Show independente',
-      status: EventStatus.ativo,
-    ),
-  ];
+  List<ProfileEventEntry> get _savedEvents => EventCatalog.savedEvents;
+  List<ProfileEventEntry> get _myEvents => EventCatalog.myEvents;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    EventCatalog.version.addListener(_onCatalogChanged);
 
-    // Adiciona o listener para sincronizar o swipe na tela com o botão
     _tabController.addListener(() {
       if (_selectedIndex != _tabController.index) {
         setState(() {
@@ -71,8 +41,13 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   void dispose() {
+    EventCatalog.version.removeListener(_onCatalogChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onCatalogChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -135,21 +110,21 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           const SizedBox(width: 16),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Maria Silva',
-                style: TextStyle(
+                AppSession.displayName,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: EventHubColors.textPrimary,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
-                'maria@email.com',
-                style: TextStyle(
+                AppSession.email ?? '',
+                style: const TextStyle(
                   fontSize: 14,
                   color: EventHubColors.textSecondary,
                 ),
@@ -185,12 +160,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildCustomTabButton({required int index, required String title}) {
-    // Usa o _selectedIndex para verificar se está ativo
-    final bool isActive = _selectedIndex == index;
+    final isActive = _selectedIndex == index;
 
     return InkWell(
       onTap: () {
-        // Atualiza a cor na hora e muda a aba
         setState(() {
           _selectedIndex = index;
         });
@@ -204,7 +177,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isActive ? Colors.transparent : EventHubColors.inputBorder,
-            width: 1,
           ),
         ),
         alignment: Alignment.center,
@@ -220,8 +192,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildEventList(List<ProfileEvent> events) {
-    if (events.isEmpty) {
+  Widget _buildEventList(List<ProfileEventEntry> entries) {
+    if (entries.isEmpty) {
       return const Center(
         child: Text(
           'Nenhum evento encontrado',
@@ -235,72 +207,14 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-      itemCount: events.length,
+      itemCount: entries.length,
       itemBuilder: (context, index) {
-        return _buildEventCard(events[index]);
+        final entry = entries[index];
+        return EventCard(
+          event: EventCatalog.byId(entry.eventId),
+          profileStatus: entry.status,
+        );
       },
-    );
-  }
-
-  Widget _buildEventCard(ProfileEvent event) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: EventHubColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EventHubColors.inputBorder),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            event.title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: EventHubColors.textPrimary,
-            ),
-          ),
-          _buildStatusTag(event.status),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusTag(EventStatus status) {
-    String label;
-    Color backgroundColor;
-
-    switch (status) {
-      case EventStatus.ativo:
-        label = 'Ativo';
-        backgroundColor = const Color(0xFF4CAF50);
-        break;
-      case EventStatus.alterado:
-        label = 'Alterado';
-        backgroundColor = const Color(0xFFFFC107);
-        break;
-      case EventStatus.cancelado:
-        label = 'Cancelado';
-        backgroundColor = const Color(0xFFF44336);
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ),
     );
   }
 
@@ -320,11 +234,11 @@ class _ProfileScreenState extends State<ProfileScreen>
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (_) => const LoginScreen(),
-                  ),
+              onPressed: () async {
+                final navigator = Navigator.of(context);
+                await AuthService.instance.signOut();
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const AuthGate()),
                   (route) => false,
                 );
               },

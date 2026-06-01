@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/eventhub_colors.dart';
 import '../screens/home_screen.dart';
+import '../screens/search_screen.dart';
 import '../screens/create_event_screen.dart';
 import '../screens/profile_screen.dart';
 
@@ -69,9 +70,9 @@ class EventHubBottomNav extends StatelessWidget {
           (route) => false,
         );
         break;
-      case 1: // Buscar -> Home
+      case 1: // Buscar -> tela com calendário e lista por data
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const SearchScreen()),
           (route) => false,
         );
         break;

@@ -168,6 +168,7 @@ class EventHubTextField extends StatelessWidget {
     this.controller,
     this.obscureText = false,
     this.keyboardType,
+    this.validator,
   });
 
   final String label;
@@ -175,6 +176,7 @@ class EventHubTextField extends StatelessWidget {
   final TextEditingController? controller;
   final bool obscureText;
   final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
@@ -189,10 +191,11 @@ class EventHubTextField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
+          validator: validator,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: EventHubColors.textMuted),
@@ -217,6 +220,10 @@ class EventHubTextField extends StatelessWidget {
                 width: 1.5,
               ),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
           ),
         ),
       ],
@@ -230,10 +237,12 @@ class AuthPrimaryButton extends StatefulWidget {
     super.key,
     required this.label,
     required this.onPressed,
+    this.isLoading = false,
   });
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool isLoading;
 
   @override
   State<AuthPrimaryButton> createState() => _AuthPrimaryButtonState();
@@ -249,27 +258,35 @@ class _AuthPrimaryButtonState extends State<AuthPrimaryButton> {
     return EventHubColors.orangeButton;
   }
 
+  bool get _enabled => !widget.isLoading && widget.onPressed != null;
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
+      cursor: _enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) {
+        if (_enabled) setState(() => _hovered = true);
+      },
       onExit: (_) => setState(() {
         _hovered = false;
         _pressed = false;
       }),
       child: GestureDetector(
-        onTapDown: (_) => setState(() => _pressed = true),
+        onTapDown: (_) {
+          if (_enabled) setState(() => _pressed = true);
+        },
         onTapUp: (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
-        onTap: widget.onPressed,
+        onTap: _enabled ? widget.onPressed : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
           width: double.infinity,
           height: 48,
           decoration: BoxDecoration(
-            color: _background,
+            color: _enabled
+                ? _background
+                : EventHubColors.orangeButton.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _hovered || _pressed
@@ -288,14 +305,23 @@ class _AuthPrimaryButtonState extends State<AuthPrimaryButton> {
             ],
           ),
           alignment: Alignment.center,
-          child: Text(
-            widget.label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
+          child: widget.isLoading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  widget.label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
         ),
       ),
     );
@@ -313,7 +339,7 @@ class AuthTextLink extends StatefulWidget {
   });
 
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Alignment align;
   final bool compact;
 
@@ -331,17 +357,23 @@ class _AuthTextLinkState extends State<AuthTextLink> {
         ? const EdgeInsets.symmetric(horizontal: 10, vertical: 6)
         : const EdgeInsets.symmetric(horizontal: 14, vertical: 10);
 
+    final enabled = widget.onTap != null;
+
     return Align(
       alignment: widget.align,
       child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
+        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        onEnter: (_) {
+          if (enabled) setState(() => _hovered = true);
+        },
         onExit: (_) => setState(() {
           _hovered = false;
           _pressed = false;
         }),
         child: GestureDetector(
-          onTapDown: (_) => setState(() => _pressed = true),
+          onTapDown: (_) {
+            if (enabled) setState(() => _pressed = true);
+          },
           onTapUp: (_) => setState(() => _pressed = false),
           onTapCancel: () => setState(() => _pressed = false),
           onTap: widget.onTap,
@@ -351,9 +383,11 @@ class _AuthTextLinkState extends State<AuthTextLink> {
             child: Text(
               widget.label,
               style: TextStyle(
-                color: _pressed
-                    ? EventHubColors.orangeButtonPressed
-                    : EventHubColors.orangeButton,
+                color: enabled
+                    ? (_pressed
+                        ? EventHubColors.orangeButtonPressed
+                        : EventHubColors.orangeButton)
+                    : EventHubColors.textMuted,
                 fontWeight: FontWeight.w700,
                 fontSize: widget.compact ? 14 : 15,
                 decoration: TextDecoration.underline,
@@ -380,7 +414,7 @@ class AuthLinkRow extends StatelessWidget {
 
   final String prefix;
   final String linkLabel;
-  final VoidCallback onLinkTap;
+  final VoidCallback? onLinkTap;
 
   @override
   Widget build(BuildContext context) {

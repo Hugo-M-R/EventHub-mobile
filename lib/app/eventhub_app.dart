@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../screens/login_screen.dart';
 import '../theme/eventhub_colors.dart';
+import '../widgets/auth_gate.dart';
 
 class EventHubApp extends StatelessWidget {
   const EventHubApp({super.key});
@@ -19,7 +19,7 @@ class EventHubApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: EventHubColors.scaffoldBg,
       ),
-      home: const LoginScreen(),
+      home: const AuthGate(),
     );
   }
 }

@@ -1,6 +1,10 @@
 # IDE (não versionar — evita caminhos do Docker/Linux no Dart_SDK.xml)
 .idea/
 
+# Segredos Firebase (use .env.example como modelo)
+.env
+firebase_web_config.json
+
 # Docker (desenvolvimento local)
 Dockerfile
 docker-compose.yml

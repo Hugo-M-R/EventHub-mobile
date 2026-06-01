@@ -4,58 +4,60 @@ import '../data/event_catalog.dart';
 import '../models/event.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/category_filter_bar.dart';
+import '../widgets/event_calendar.dart';
 import '../widgets/event_card.dart';
-import '../widgets/event_search_bar.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class SearchScreen extends StatefulWidget {
+  const SearchScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final int _currentIndex = 0;
-  List<Event> get _events => EventCatalog.events;
-  final TextEditingController _searchController = TextEditingController();
+class _SearchScreenState extends State<SearchScreen> {
+  static const int _currentIndex = 1;
 
-  static const List<String> _categories = [
-    'Todos',
-    'Música',
-    'Teatro',
-    'Feira',
-    'Gratuito',
-  ];
+  late Set<DateTime> _eventDates;
 
-  String _selectedCategory = _categories.first;
-  String _searchQuery = '';
+  /// `null` = sem filtro de data (lista completa).
+  DateTime? _selectedDate;
 
   List<Event> get _filteredEvents {
-    final byCategory = filterEventsByCategory(_events, _selectedCategory);
-    return filterEventsByQuery(byCategory, _searchQuery);
+    final events = EventCatalog.events;
+    if (_selectedDate == null) return List<Event>.from(events);
+    return filterEventsByDate(events, _selectedDate!);
   }
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+    _syncEventDates();
     EventCatalog.version.addListener(_onCatalogChanged);
   }
 
   @override
   void dispose() {
     EventCatalog.version.removeListener(_onCatalogChanged);
-    _searchController.dispose();
     super.dispose();
   }
 
   void _onCatalogChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(_syncEventDates);
+  }
+
+  void _syncEventDates() {
+    _eventDates = datesWithEvents(EventCatalog.events);
   }
 
   @override
   Widget build(BuildContext context) {
     final filteredEvents = _filteredEvents;
+    final sectionTitle = _selectedDate == null
+        ? 'Todos os eventos'
+        : 'Eventos em ${Event.formatDayLabel(_selectedDate!)}';
 
     return Scaffold(
       backgroundColor: EventHubColors.scaffoldBg,
@@ -65,25 +67,24 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildHeader(),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                 children: [
-                  EventSearchBar(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() => _searchQuery = value);
+                  EventCalendar(
+                    eventDates: _eventDates,
+                    selectedDate: _selectedDate,
+                    onDateSelected: (date) {
+                      setState(() {
+                        _selectedDate =
+                            DateTime(date.year, date.month, date.day);
+                      });
+                    },
+                    onClearSelection: () {
+                      setState(() => _selectedDate = null);
                     },
                   ),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Eventos perto de você'),
+                  _buildSectionTitle(sectionTitle),
                   const SizedBox(height: 16),
-                  CategoryFilterBar(
-                    categories: _categories,
-                    selectedCategory: _selectedCategory,
-                    onCategorySelected: (category) {
-                      setState(() => _selectedCategory = category);
-                    },
-                  ),
-                  const SizedBox(height: 20),
                   if (filteredEvents.isEmpty)
                     _buildEmptyState()
                   else
@@ -94,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: EventHubBottomNav(currentIndex: _currentIndex),
+      bottomNavigationBar: const EventHubBottomNav(currentIndex: _currentIndex),
     );
   }
 
@@ -102,23 +103,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(
-            width: double.infinity,
-            child: Text(
-              'EventHub',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: EventHubColors.textPrimary,
-              ),
+          const Text(
+            'Buscar eventos',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: EventHubColors.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Descubra cultura perto de você',
+            'Dias em azul têm eventos; toque para filtrar',
             style: TextStyle(
               fontSize: 14,
               color: EventHubColors.textSecondary,
@@ -141,9 +138,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmptyState() {
-    final message = _searchQuery.trim().isNotEmpty
-        ? 'Nenhum evento encontrado para "${_searchQuery.trim()}".'
-        : 'Nenhum evento encontrado para "$_selectedCategory".';
+    final message = _selectedDate == null
+        ? 'Nenhum evento cadastrado.'
+        : 'Nenhum evento em ${Event.formatDayLabel(_selectedDate!)}.';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32),

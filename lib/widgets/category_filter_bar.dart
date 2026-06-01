@@ -62,8 +62,8 @@ class CategoryFilterBar extends StatelessWidget {
 /// Aplica o filtro de categoria selecionado na lista de eventos.
 List<Event> filterEventsByCategory(List<Event> events, String category) {
   switch (category) {
-    case 'Hoje':
-      return events.where((e) => e.isToday).toList();
+    case 'Todos':
+      return events;
     case 'Gratuito':
       return events.where((e) => e.isFree).toList();
     default:

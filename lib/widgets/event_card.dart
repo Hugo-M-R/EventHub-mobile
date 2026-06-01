@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../models/event.dart';
-import '../screens/event_detail_screen.dart';
+import '../models/event_profile_status.dart';
+import '../navigation/event_navigation.dart';
 import '../theme/eventhub_colors.dart';
+import 'event_cover_thumbnail.dart';
+import 'event_profile_status_tag.dart';
 
 class EventCard extends StatelessWidget {
-  const EventCard({super.key, required this.event});
+  const EventCard({
+    super.key,
+    required this.event,
+    this.profileStatus,
+  });
 
   final Event event;
+  final EventProfileStatus? profileStatus;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => EventDetailScreen(event: event)),
-      ),
+      onTap: () => openEventDetail(context, event),
       child: _buildCard(),
     );
   }
@@ -36,30 +41,31 @@ class EventCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: event.gradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-            ),
-          ),
+          EventCoverThumbnail(event: event),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    event.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: EventHubColors.textPrimary,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: EventHubColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (profileStatus != null) ...[
+                        const SizedBox(width: 8),
+                        EventProfileStatusTag(status: profileStatus!),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -102,7 +108,10 @@ class EventCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: EventHubColors.orangeButton.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),

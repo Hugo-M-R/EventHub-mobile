@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../data/event_catalog.dart';
 import '../models/event.dart';
+import '../navigation/event_navigation.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/event_card.dart';
+import '../widgets/event_cover_thumbnail.dart';
 
 class EventDetailScreen extends StatelessWidget {
   const EventDetailScreen({super.key, required this.event});
@@ -83,7 +87,7 @@ class EventDetailScreen extends StatelessWidget {
                   _buildSecondaryButton(),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => openSimilarEvents(context, event),
                     child: const Text(
                       'Ver eventos parecidos →',
                       style: TextStyle(
@@ -93,6 +97,20 @@ class EventDetailScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Na mesma categoria',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: EventHubColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...EventCatalog.eventsInCategory(event.category)
+                      .where((item) => item.id != event.id)
+                      .take(3)
+                      .map((item) => EventCard(event: item)),
                 ],
               ),
             ),
@@ -104,11 +122,18 @@ class EventDetailScreen extends StatelessWidget {
   }
 
   Widget _buildHeroHeader() {
-    return Container(
+    return SizedBox(
       height: 200,
-      decoration: BoxDecoration(gradient: event.gradient),
+      width: double.infinity,
       child: Stack(
+        fit: StackFit.expand,
         children: [
+          EventCoverThumbnail(
+            event: event,
+            width: double.infinity,
+            height: 200,
+            borderRadius: BorderRadius.zero,
+          ),
           Positioned(
             bottom: 0,
             left: 0,

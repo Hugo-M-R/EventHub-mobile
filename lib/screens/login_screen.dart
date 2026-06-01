@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../session/app_session.dart';
+import '../services/auth_error_messages.dart';
+import '../services/auth_service.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/auth_widgets.dart';
 import 'forgot_password_screen.dart';
-import 'home_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,8 +15,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,10 +27,26 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    AppSession.loginAsUser(_emailController.text);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.instance.signInWithEmail(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showError(authErrorMessage(error));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -40,64 +58,90 @@ class _LoginScreenState extends State<LoginScreen> {
         subtitle: 'Cultura local na sua mão',
       ),
       card: AuthWhiteCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Entrar',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: EventHubColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Acesse sua conta para salvar eventos e criar avisos para o público.',
-              style: TextStyle(
-                fontSize: 14,
-                color: EventHubColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 24),
-            EventHubTextField(
-              label: 'E-mail',
-              hint: 'nome@email.com',
-              keyboardType: TextInputType.emailAddress,
-              controller: _emailController,
-            ),
-            const SizedBox(height: 16),
-            EventHubTextField(
-              label: 'Senha',
-              hint: '••••••••',
-              obscureText: true,
-              controller: _passwordController,
-            ),
-            const SizedBox(height: 8),
-            AuthTextLink(
-              label: 'Esqueci minha senha',
-              align: Alignment.centerRight,
-              compact: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ForgotPasswordScreen(),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Entrar',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: EventHubColors.textPrimary,
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            AuthPrimaryButton(label: 'Entrar', onPressed: _login),
-            const SizedBox(height: 20),
-            AuthLinkRow(
-              prefix: 'Não tem conta?',
-              linkLabel: 'Criar conta',
-              onLinkTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const RegisterScreen(),
+              const SizedBox(height: 8),
+              const Text(
+                'Acesse sua conta para salvar eventos e criar avisos para o público.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: EventHubColors.textSecondary,
+                  height: 1.4,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              EventHubTextField(
+                label: 'E-mail',
+                hint: 'nome@email.com',
+                keyboardType: TextInputType.emailAddress,
+                controller: _emailController,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Informe o e-mail';
+                  }
+                  if (!value.contains('@')) {
+                    return 'E-mail inválido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              EventHubTextField(
+                label: 'Senha',
+                hint: '••••••••',
+                obscureText: true,
+                controller: _passwordController,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Informe a senha';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              AuthTextLink(
+                label: 'Esqueci minha senha',
+                align: Alignment.centerRight,
+                compact: true,
+                onTap: _isLoading
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        ),
+              ),
+              const SizedBox(height: 16),
+              AuthPrimaryButton(
+                label: 'Entrar',
+                isLoading: _isLoading,
+                onPressed: _login,
+              ),
+              const SizedBox(height: 20),
+              AuthLinkRow(
+                prefix: 'Não tem conta?',
+                linkLabel: 'Criar conta',
+                onLinkTap: _isLoading
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        ),
+              ),
+            ],
+          ),
         ),
       ),
     );

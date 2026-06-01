@@ -1,7 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../data/event_catalog.dart';
+import '../models/event.dart';
 import '../theme/eventhub_colors.dart';
+import '../utils/eventhub_date_picker.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/select_event_sheet.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
@@ -11,13 +18,20 @@ class CreateEventScreen extends StatefulWidget {
 }
 
 class _CreateEventScreenState extends State<CreateEventScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _categoryController = TextEditingController();
   final _dateController = TextEditingController();
   final _timeController = TextEditingController();
   final _locationController = TextEditingController();
   final _descriptionController = TextEditingController();
-  int _currentIndex = 2;
+  final _imagePicker = ImagePicker();
+
+  final int _currentIndex = 2;
+  String? _editingEventId;
+  Uint8List? _coverImageBytes;
+
+  bool get _isEditing => _editingEventId != null;
 
   @override
   void dispose() {
@@ -31,11 +45,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final picked = await EventHubDatePicker.show(
+      context,
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
     );
     if (picked != null) {
       setState(() {
@@ -45,15 +58,38 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Future<void> _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
+    final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
     if (picked != null) {
       setState(() {
-        _timeController.text = '${picked.hour}:${picked.minute.toString().padLeft(2, '0')}';
+        _timeController.text =
+            '${picked.hour}:${picked.minute.toString().padLeft(2, '0')}';
       });
     }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final file = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      setState(() => _coverImageBytes = bytes);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('Não foi possível carregar a imagem.');
+    }
+  }
+
+  void _removeImage() {
+    setState(() => _coverImageBytes = null);
   }
 
   void _selectCategory() {
@@ -69,6 +105,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             _categoryOption('Feira'),
             _categoryOption('Exposição'),
             _categoryOption('Workshop'),
+            _categoryOption('Cinema'),
             _categoryOption('Outro'),
           ],
         ),
@@ -88,31 +125,120 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     );
   }
 
+  DateTime? _parseStartsAt() {
+    final dateParts = _dateController.text.split('/');
+    final timeParts = _timeController.text.split(':');
+    if (dateParts.length != 3 || timeParts.length < 2) return null;
+
+    final day = int.tryParse(dateParts[0]);
+    final month = int.tryParse(dateParts[1]);
+    final year = int.tryParse(dateParts[2]);
+    final hour = int.tryParse(timeParts[0]);
+    final minute = int.tryParse(timeParts[1]);
+
+    if (day == null ||
+        month == null ||
+        year == null ||
+        hour == null ||
+        minute == null) {
+      return null;
+    }
+
+    return DateTime(year, month, day, hour, minute);
+  }
+
+  Event? _buildEventFromForm({required String id}) {
+    final startsAt = _parseStartsAt();
+    if (startsAt == null) return null;
+
+    final category = _categoryController.text.trim();
+    return Event(
+      id: id,
+      title: _nameController.text.trim(),
+      date: Event.formatDisplayDate(startsAt),
+      location: _locationController.text.trim(),
+      category: category,
+      description: _descriptionController.text.trim(),
+      startsAt: startsAt,
+      gradient: Event.gradientForCategory(category),
+      coverImageBytes: _coverImageBytes,
+    );
+  }
+
   void _saveEvent() {
-    // TODO: Implement save logic
+    if (!_formKey.currentState!.validate()) return;
+
+    final startsAt = _parseStartsAt();
+    if (startsAt == null) {
+      _showMessage('Informe data e hora válidas.');
+      return;
+    }
+
+    if (_isEditing) {
+      final existing = EventCatalog.byId(_editingEventId!);
+      final updated = _buildEventFromForm(id: existing.id);
+      if (updated == null) return;
+      EventCatalog.updateEvent(updated);
+      _showMessage('Evento atualizado com sucesso.');
+    } else {
+      final created = _buildEventFromForm(id: EventCatalog.nextId());
+      if (created == null) return;
+      EventCatalog.addEvent(created);
+      _showMessage('Evento salvo com sucesso.');
+    }
+
+    _clearForm();
     Navigator.pop(context);
   }
 
-  void _editEvent() {
-    // TODO: Implement edit logic
+  Future<void> _editEvent() async {
+    final selected = await showSelectEventSheet(
+      context,
+      title: 'Selecione o evento para editar',
+    );
+    if (selected == null || !mounted) return;
+    _loadEventIntoForm(selected);
   }
 
-  void _deleteEvent() {
-    showDialog(
+  Future<void> _deleteEvent() async {
+    if (_isEditing) {
+      final confirmed = await _confirmDelete(EventCatalog.byId(_editingEventId!));
+      if (confirmed != true || !mounted) return;
+      EventCatalog.removeEvent(_editingEventId!);
+      _showMessage('Evento excluído.');
+      _clearForm();
+      return;
+    }
+
+    final selected = await showSelectEventSheet(
+      context,
+      title: 'Selecione o evento para excluir',
+    );
+    if (selected == null || !mounted) return;
+
+    final confirmed = await _confirmDelete(selected);
+    if (confirmed != true || !mounted) return;
+
+    EventCatalog.removeEvent(selected.id);
+    if (_editingEventId == selected.id) {
+      _clearForm();
+    }
+    _showMessage('Evento excluído.');
+  }
+
+  Future<bool?> _confirmDelete(Event event) {
+    return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Excluir evento'),
-        content: const Text('Tem certeza que deseja excluir este evento?'),
+        content: Text('Excluir "${event.title}"? Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text(
               'Excluir',
               style: TextStyle(color: Colors.red),
@@ -120,6 +246,40 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _loadEventIntoForm(Event event) {
+    setState(() {
+      _editingEventId = event.id;
+      _nameController.text = event.title;
+      _categoryController.text = event.category;
+      _locationController.text = event.location;
+      _descriptionController.text = event.description ?? '';
+      _dateController.text =
+          '${event.startsAt.day}/${event.startsAt.month}/${event.startsAt.year}';
+      _timeController.text =
+          '${event.startsAt.hour}:${event.startsAt.minute.toString().padLeft(2, '0')}';
+      _coverImageBytes = event.coverImageBytes;
+    });
+  }
+
+  void _clearForm() {
+    setState(() {
+      _editingEventId = null;
+      _coverImageBytes = null;
+      _nameController.clear();
+      _categoryController.clear();
+      _dateController.clear();
+      _timeController.clear();
+      _locationController.clear();
+      _descriptionController.clear();
+    });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -132,25 +292,82 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-                children: [
-                  _buildTextField('Nome do evento', 'Ex: Show de rock', _nameController),
-                  const SizedBox(height: 16),
-                  _buildDropdownField('Categoria', 'Selecione', _categoryController, _selectCategory),
-                  const SizedBox(height: 16),
-                  _buildDropdownField('Data', 'Selecione a data', _dateController, _selectDate),
-                  const SizedBox(height: 16),
-                  _buildDropdownField('Hora', 'Selecione a hora', _timeController, _selectTime),
-                  const SizedBox(height: 16),
-                  _buildTextField('Local', 'Ex: Centro Cultural', _locationController),
-                  const SizedBox(height: 16),
-                  _buildDescriptionField(),
-                  const SizedBox(height: 16),
-                  _buildImageSection(),
-                  const SizedBox(height: 24),
-                  _buildActionButtons(),
-                ],
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                  children: [
+                    if (_isEditing) _buildEditingBanner(),
+                    _buildTextField(
+                      'Nome do evento',
+                      'Ex: Show de rock',
+                      _nameController,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Informe o nome do evento';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDropdownField(
+                      'Categoria',
+                      'Selecione',
+                      _categoryController,
+                      _selectCategory,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecione uma categoria';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDropdownField(
+                      'Data',
+                      'Selecione a data',
+                      _dateController,
+                      _selectDate,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecione a data';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDropdownField(
+                      'Hora',
+                      'Selecione a hora',
+                      _timeController,
+                      _selectTime,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecione a hora';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      'Local',
+                      'Ex: Centro Cultural',
+                      _locationController,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Informe o local';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDescriptionField(),
+                    const SizedBox(height: 16),
+                    _buildImageSection(),
+                    const SizedBox(height: 24),
+                    _buildActionButtons(),
+                  ],
+                ),
               ),
             ),
           ],
@@ -163,23 +380,56 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Text(
-            'Novo evento',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: EventHubColors.textPrimary,
+          Expanded(
+            child: Text(
+              _isEditing ? 'Editar evento' : 'Novo evento',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: EventHubColors.textPrimary,
+              ),
             ),
           ),
+          if (_isEditing)
+            TextButton(
+              onPressed: _clearForm,
+              child: const Text('Novo'),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildTextField(String label, String hint, TextEditingController controller) {
+  Widget _buildEditingBanner() {
+    final event = EventCatalog.byId(_editingEventId!);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: EventHubColors.orangeButton.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: EventHubColors.orangeButton.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Text(
+        'Editando: ${event.title}',
+        style: TextStyle(
+          color: EventHubColors.orangeButton,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    String hint,
+    TextEditingController controller, {
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -191,39 +441,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: controller,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: EventHubColors.textMuted),
-            filled: true,
-            fillColor: EventHubColors.inputFill,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: EventHubColors.inputBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: EventHubColors.inputBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(
-                color: EventHubColors.orangeButton,
-                width: 1.5,
-              ),
-            ),
-          ),
+          validator: validator,
+          decoration: _inputDecoration(hint),
         ),
       ],
     );
   }
 
-  Widget _buildDropdownField(String label, String hint, TextEditingController controller, VoidCallback onTap) {
+  Widget _buildDropdownField(
+    String label,
+    String hint,
+    TextEditingController controller,
+    VoidCallback onTap, {
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -235,32 +468,59 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        InkWell(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: EventHubColors.inputFill,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: EventHubColors.inputBorder),
-            ),
-            child: Row(
+        FormField<String>(
+          validator: (_) => validator?.call(controller.text),
+          builder: (field) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    controller.text.isEmpty ? hint : controller.text,
-                    style: TextStyle(
-                      color: controller.text.isEmpty ? EventHubColors.textMuted : EventHubColors.textPrimary,
+                InkWell(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: EventHubColors.inputFill,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: field.hasError
+                            ? Colors.red
+                            : EventHubColors.inputBorder,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            controller.text.isEmpty ? hint : controller.text,
+                            style: TextStyle(
+                              color: controller.text.isEmpty
+                                  ? EventHubColors.textMuted
+                                  : EventHubColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: EventHubColors.textSecondary,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: EventHubColors.textSecondary,
-                ),
+                if (field.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, left: 4),
+                    child: Text(
+                      field.errorText!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
               ],
-            ),
-          ),
+            );
+          },
         ),
       ],
     );
@@ -278,36 +538,41 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: _descriptionController,
           maxLines: 4,
-          decoration: InputDecoration(
-            hintText: 'Descreva seu evento...',
-            hintStyle: const TextStyle(color: EventHubColors.textMuted),
-            filled: true,
-            fillColor: EventHubColors.inputFill,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: EventHubColors.inputBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: EventHubColors.inputBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(
-                color: EventHubColors.orangeButton,
-                width: 1.5,
-              ),
-            ),
-          ),
+          decoration: _inputDecoration('Descreva seu evento...'),
         ),
       ],
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: EventHubColors.textMuted),
+      filled: true,
+      fillColor: EventHubColors.inputFill,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: EventHubColors.inputBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: EventHubColors.inputBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(
+          color: EventHubColors.orangeButton,
+          width: 1.5,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
     );
   }
 
@@ -323,36 +588,59 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          height: 120,
-          decoration: BoxDecoration(
-            color: EventHubColors.inputFill,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: EventHubColors.inputBorder,
-              style: BorderStyle.solid,
+        InkWell(
+          onTap: _pickImage,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 160,
+            decoration: BoxDecoration(
+              color: EventHubColors.inputFill,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: EventHubColors.inputBorder),
             ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_photo_alternate_outlined,
-                  size: 32,
-                  color: EventHubColors.textSecondary,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Adicionar imagem',
-                  style: TextStyle(
-                    color: EventHubColors.textSecondary,
-                    fontSize: 14,
+            child: _coverImageBytes == null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 32,
+                        color: EventHubColors.textSecondary,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Toque para adicionar imagem',
+                        style: TextStyle(
+                          color: EventHubColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  )
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.memory(
+                          _coverImageBytes!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black54,
+                          ),
+                          onPressed: _removeImage,
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ],
@@ -375,9 +663,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
               elevation: 0,
             ),
-            child: const Text(
-              'Salvar evento',
-              style: TextStyle(
+            child: Text(
+              _isEditing ? 'Salvar alterações' : 'Salvar evento',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
