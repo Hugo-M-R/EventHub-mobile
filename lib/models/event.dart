@@ -21,6 +21,7 @@ class Event {
   final String? description;
   final Uint8List? coverImageBytes;
   final String? createdBy;
+  final String? usuarioLogado;
   final EventProfileStatus profileStatus;
 
   Event({
@@ -37,6 +38,7 @@ class Event {
     this.description,
     this.coverImageBytes,
     this.createdBy,
+    this.usuarioLogado,
     this.profileStatus = EventProfileStatus.ativo,
   });
 
@@ -59,12 +61,14 @@ class Event {
       description: data['description'] as String?,
       coverImageBytes: _decodeCover(data['coverImageBase64'] as String?),
       createdBy: data['createdBy'] as String?,
+      usuarioLogado: data['usuario_logado'] as String?,
       profileStatus: _profileStatusFromString(data['profileStatus'] as String?),
     );
   }
 
   Map<String, dynamic> toFirestore({
     required String createdBy,
+    required String usuarioLogado,
     String? coverImageBase64,
     EventProfileStatus? profileStatus,
     bool isCreate = false,
@@ -89,6 +93,7 @@ class Event {
           'coverImageBase64': coverImageBase64,
       },
       'createdBy': createdBy,
+      'usuario_logado': usuarioLogado,
       'profileStatus': status.name,
       if (isCreate) 'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -125,6 +130,7 @@ class Event {
     String? description,
     Uint8List? coverImageBytes,
     String? createdBy,
+    String? usuarioLogado,
     EventProfileStatus? profileStatus,
     bool clearCoverImage = false,
   }) {
@@ -144,6 +150,7 @@ class Event {
           ? null
           : (coverImageBytes ?? this.coverImageBytes),
       createdBy: createdBy ?? this.createdBy,
+      usuarioLogado: usuarioLogado ?? this.usuarioLogado,
       profileStatus: profileStatus ?? this.profileStatus,
     );
   }

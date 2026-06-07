@@ -232,11 +232,19 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  void _removeFromSaved(String eventId) {
-    EventCatalog.removeSavedInterest(eventId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Removido dos eventos salvos.')),
-    );
+  Future<void> _removeFromSaved(String eventId) async {
+    try {
+      await EventCatalog.removeSavedInterest(eventId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Removido dos eventos salvos.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível remover o evento.')),
+      );
+    }
   }
 
   Widget _buildFooter() {

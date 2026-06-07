@@ -37,8 +37,9 @@ docker compose run --rm -it --service-ports web
 
 ## Tela de login (implementada)
 
-- Login com qualquer e-mail (senha não validada)
-- **Criar conta** e **Esqueci minha senha** → telas completas (sem validação de backend)
+- Firebase Auth: **e-mail/senha** e **Google Sign-In**
+- Acesso restrito a `@souunit.com.br` (logout imediato se domínio inválido)
+- **Criar conta** e **Esqueci minha senha** integrados ao Firebase
 
 ---
 
@@ -58,7 +59,7 @@ docker compose run --rm -it --service-ports web
 
 | # | Tarefa | Responsável | Status | Prazo | Observações |
 |---|--------|-------------|--------|-------|-------------|
-| 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🟡 | | Login implementado; cadastro e recuperar senha em breve |
+| 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🟡 | | **Feito por Hugo (git):** telas de login, cadastro e recuperar senha (`8382800`); Firebase Auth e-mail/senha, `AuthGate`, `EnvConfig`, `.env.example` (`2e3f87d`); tela Buscar com calendário; CRUD de eventos com imagem; **Google Sign-In**; validação `@souunit.com.br`; campo `usuario_logado` no Firestore; eventos salvos no Firestore; `firestore.rules`. **Pendente:** link do vídeo de defesa. |
 | 2 | Tela Home/Tela Criar Eventos | Cauê Vieira | 🟢 | 18/05 | — |
 | 3 | Tela de Perfil | João Victor Gomes | 🟢 | | — |
 | 4 | Tela Visualizar Eventos | Julia Souza | 🟢 | | — |

@@ -41,11 +41,12 @@ class EventService {
     Event event, {
     Uint8List? coverBytes,
   }) async {
-    final uid = _requireCurrentUserId();
+    final user = _requireCurrentUser();
 
     await _events.doc(event.id).set(
           event.toFirestore(
-            createdBy: uid,
+            createdBy: user.uid,
+            usuarioLogado: user.email!,
             coverImageBase64: _encodeCover(coverBytes),
             isCreate: true,
           ),
@@ -57,11 +58,13 @@ class EventService {
     Uint8List? coverBytes,
     bool removeCover = false,
   }) async {
-    _requireCurrentUserId();
+    final user = _requireCurrentUser();
+    _assertOwnership(event, user.uid);
 
     await _events.doc(event.id).update(
           event.toFirestore(
             createdBy: event.createdBy!,
+            usuarioLogado: event.usuarioLogado ?? user.email!,
             coverImageBase64: removeCover ? null : _encodeCover(coverBytes),
             profileStatus: EventProfileStatus.alterado,
             deleteCoverImage: removeCover,
@@ -71,15 +74,22 @@ class EventService {
   }
 
   Future<void> deleteEvent(Event event) async {
-    _requireCurrentUserId();
+    final user = _requireCurrentUser();
+    _assertOwnership(event, user.uid);
     await _events.doc(event.id).delete();
   }
 
-  String _requireCurrentUserId() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
+  User _requireCurrentUser() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.email == null) {
       throw StateError('É necessário estar autenticado para gerenciar eventos.');
     }
-    return uid;
+    return user;
+  }
+
+  void _assertOwnership(Event event, String uid) {
+    if (event.createdBy != uid) {
+      throw StateError('Você só pode alterar eventos que você criou.');
+    }
   }
 }

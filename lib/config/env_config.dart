@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Carrega variáveis do arquivo `.env` na raiz do projeto.
@@ -26,6 +27,15 @@ abstract final class EnvConfig {
     return value;
   }
 
+  /// Web usa `FIREBASE_WEB_APP_ID`; Android usa `FIREBASE_ANDROID_APP_ID`.
+  /// Se só existir `FIREBASE_APP_ID`, ele é usado como fallback.
+  static String get firebaseAppId {
+    if (kIsWeb) {
+      return optional('FIREBASE_WEB_APP_ID') ?? require('FIREBASE_APP_ID');
+    }
+    return optional('FIREBASE_ANDROID_APP_ID') ?? require('FIREBASE_APP_ID');
+  }
+
   static FirebaseOptions get firebaseOptions {
     return FirebaseOptions(
       apiKey: require('FIREBASE_API_KEY'),
@@ -33,7 +43,7 @@ abstract final class EnvConfig {
       projectId: require('FIREBASE_PROJECT_ID'),
       storageBucket: require('FIREBASE_STORAGE_BUCKET'),
       messagingSenderId: require('FIREBASE_MESSAGING_SENDER_ID'),
-      appId: require('FIREBASE_APP_ID'),
+      appId: firebaseAppId,
       measurementId: optional('FIREBASE_MEASUREMENT_ID'),
     );
   }

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../models/event_profile_status.dart';
 import '../services/event_service.dart';
+import '../services/saved_event_service.dart';
 
 /// Catálogo de eventos sincronizado com Firestore (Home, Buscar, Perfil, CRUD).
 abstract final class EventCatalog {
@@ -18,9 +19,10 @@ abstract final class EventCatalog {
   static bool isLoading = true;
   static String? loadError;
 
-  static StreamSubscription<List<Event>>? _subscription;
+  static StreamSubscription<List<Event>>? _eventsSubscription;
+  static StreamSubscription<List<String>>? _savedSubscription;
 
-  /// Eventos marcados com "Tenho interesse" (sessão atual).
+  /// Eventos marcados com "Tenho interesse" (Firestore em tempo real).
   static final List<ProfileEventEntry> savedEvents = [];
 
   static bool isSaved(String eventId) {
@@ -32,29 +34,22 @@ abstract final class EventCatalog {
     return uid != null && event.createdBy == uid;
   }
 
-  static void saveInterest(String eventId) {
+  static Future<void> saveInterest(String eventId) async {
     if (isSaved(eventId)) return;
-    savedEvents.add(
-      ProfileEventEntry(
-        eventId: eventId,
-        status: EventProfileStatus.ativo,
-      ),
-    );
-    _notifyChange();
+    await SavedEventService.instance.saveInterest(eventId);
   }
 
-  static void removeSavedInterest(String eventId) {
-    savedEvents.removeWhere((entry) => entry.eventId == eventId);
-    _notifyChange();
+  static Future<void> removeSavedInterest(String eventId) async {
+    await SavedEventService.instance.removeInterest(eventId);
   }
 
   static Future<void> initialize() async {
-    await _subscription?.cancel();
+    await _eventsSubscription?.cancel();
     isLoading = true;
     loadError = null;
     _notifyChange();
 
-    _subscription = EventService.instance.watchEvents().listen(
+    _eventsSubscription = EventService.instance.watchEvents().listen(
       (list) {
         events
           ..clear()
@@ -71,9 +66,48 @@ abstract final class EventCatalog {
     );
   }
 
+  static Future<void> startSavedEventsSync() async {
+    await _savedSubscription?.cancel();
+    savedEvents.clear();
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _notifyChange();
+      return;
+    }
+
+    _savedSubscription =
+        SavedEventService.instance.watchSavedEventIds(uid).listen(
+      (eventIds) {
+        savedEvents
+          ..clear()
+          ..addAll(
+            eventIds.map(
+              (id) => ProfileEventEntry(
+                eventId: id,
+                status: EventProfileStatus.ativo,
+              ),
+            ),
+          );
+        _notifyChange();
+      },
+      onError: (_) {
+        _notifyChange();
+      },
+    );
+  }
+
+  static Future<void> stopSavedEventsSync() async {
+    await _savedSubscription?.cancel();
+    _savedSubscription = null;
+    savedEvents.clear();
+    _notifyChange();
+  }
+
   static Future<void> dispose() async {
-    await _subscription?.cancel();
-    _subscription = null;
+    await _eventsSubscription?.cancel();
+    await stopSavedEventsSync();
+    _eventsSubscription = null;
   }
 
   static Event byId(String id) {
@@ -130,8 +164,9 @@ abstract final class EventCatalog {
   static Future<void> removeEvent(String id) async {
     final event = byId(id);
     await EventService.instance.deleteEvent(event);
-    savedEvents.removeWhere((entry) => entry.eventId == id);
-    _notifyChange();
+    if (isSaved(id)) {
+      await removeSavedInterest(id);
+    }
   }
 
   static void _notifyChange() {

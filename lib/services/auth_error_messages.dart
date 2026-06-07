@@ -1,7 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'institutional_email_policy.dart';
+
 /// Mensagens de erro do Firebase Auth em português.
 String authErrorMessage(Object error) {
+  if (error is InstitutionalEmailException) {
+    return error.message;
+  }
+
   if (error is FirebaseAuthException) {
     return switch (error.code) {
       'invalid-email' => 'E-mail inválido.',
