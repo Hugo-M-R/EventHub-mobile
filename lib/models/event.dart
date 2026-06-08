@@ -89,8 +89,8 @@ class Event {
       if (includeCover) ...{
         if (deleteCoverImage)
           'coverImageBase64': FieldValue.delete()
-        else if (coverImageBase64 != null)
-          'coverImageBase64': coverImageBase64,
+        else
+          'coverImageBase64': ?coverImageBase64,
       },
       'createdBy': createdBy,
       'usuario_logado': usuarioLogado,
