@@ -59,7 +59,7 @@ docker compose run --rm -it --service-ports web
 
 | # | Tarefa | Responsável | Status | Prazo | Observações |
 |---|--------|-------------|--------|-------|-------------|
-| 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🟡 | |telas de login, cadastro e recuperar senha; Firebase Auth e-mail/senha, `AuthGate`, `EnvConfig`, `.env.example` ; tela Buscar com calendário; CRUD de eventos com imagem; **Google Sign-In**; validação `@souunit.com.br`; campo `usuario_logado` no Firestore; eventos salvos no Firestore; `firestore.rules`. link do vídeo de defesa: https://drive.google.com/file/d/1McxXfyknrNJZgWoeXr282knZD1S57t3G/view?usp=drive_link . |
+| 1 | Tela de login, cadastro e esquecer senha | Hugo Machado | 🟢 | |telas de login, cadastro e recuperar senha; Firebase Auth e-mail/senha, `AuthGate`, `EnvConfig`, `.env.example` ; tela Buscar com calendário; CRUD de eventos com imagem; **Google Sign-In**; validação `@souunit.com.br`; campo `usuario_logado` no Firestore; eventos salvos no Firestore; `firestore.rules`. link do vídeo de defesa: https://drive.google.com/file/d/1McxXfyknrNJZgWoeXr282knZD1S57t3G/view?usp=drive_link . |
 | 2 | Tela Home/Tela Criar Eventos | Cauê Vieira | 🟢 | 18/05 | — |
 | 3 | Tela de Perfil | João Victor Gomes | 🟢 | | — |
 | 4 | Tela Visualizar Eventos | Julia Souza | 🟢 | | — |
