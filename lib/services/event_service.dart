@@ -41,12 +41,11 @@ class EventService {
     Event event, {
     Uint8List? coverBytes,
   }) async {
-    final user = _requireCurrentUser();
+    final email = _requireCurrentUserEmail();
 
     await _events.doc(event.id).set(
           event.toFirestore(
-            createdBy: user.uid,
-            usuarioLogado: user.email!,
+            createdBy: email,
             coverImageBase64: _encodeCover(coverBytes),
             isCreate: true,
           ),
@@ -58,13 +57,11 @@ class EventService {
     Uint8List? coverBytes,
     bool removeCover = false,
   }) async {
-    final user = _requireCurrentUser();
-    _assertOwnership(event, user.uid);
+    _requireCurrentUserEmail();
 
     await _events.doc(event.id).update(
           event.toFirestore(
             createdBy: event.createdBy!,
-            usuarioLogado: event.usuarioLogado ?? user.email!,
             coverImageBase64: removeCover ? null : _encodeCover(coverBytes),
             profileStatus: EventProfileStatus.alterado,
             deleteCoverImage: removeCover,
@@ -74,22 +71,17 @@ class EventService {
   }
 
   Future<void> deleteEvent(Event event) async {
-    final user = _requireCurrentUser();
-    _assertOwnership(event, user.uid);
+    _requireCurrentUserEmail();
     await _events.doc(event.id).delete();
   }
 
-  User _requireCurrentUser() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || user.email == null) {
+  /// Captura o e-mail do usuário autenticado (regra da Atividade 3:
+  /// amarração dinâmica do criador do evento via Firebase Auth).
+  String _requireCurrentUserEmail() {
+    final email = FirebaseAuth.instance.currentUser?.email;
+    if (email == null || email.isEmpty) {
       throw StateError('É necessário estar autenticado para gerenciar eventos.');
     }
-    return user;
-  }
-
-  void _assertOwnership(Event event, String uid) {
-    if (event.createdBy != uid) {
-      throw StateError('Você só pode alterar eventos que você criou.');
-    }
+    return email;
   }
 }

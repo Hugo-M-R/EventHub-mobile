@@ -1,13 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'institutional_email_policy.dart';
-
 /// Mensagens de erro do Firebase Auth em português.
 String authErrorMessage(Object error) {
-  if (error is InstitutionalEmailException) {
-    return error.message;
-  }
-
   if (error is FirebaseAuthException) {
     return switch (error.code) {
       'invalid-email' => 'E-mail inválido.',
@@ -20,6 +14,8 @@ String authErrorMessage(Object error) {
       'operation-not-allowed' => 'Login por e-mail não está habilitado no Firebase.',
       'too-many-requests' => 'Muitas tentativas. Tente novamente mais tarde.',
       'network-request-failed' => 'Sem conexão. Verifique sua internet.',
+      'popup-closed-by-user' => 'Login com Google cancelado.',
+      'popup-blocked' => 'O navegador bloqueou o popup do Google. Libere e tente de novo.',
       _ => error.message ?? 'Não foi possível concluir a autenticação.',
     };
   }

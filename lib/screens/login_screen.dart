@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_error_messages.dart';
 import '../services/auth_service.dart';
-import '../services/institutional_email_policy.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/auth_widgets.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.accessDeniedMessage});
-
-  final String? accessDeniedMessage;
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -22,17 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _isGoogleLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.accessDeniedMessage != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showError(widget.accessDeniedMessage!);
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -59,14 +45,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle() async {
-    setState(() => _isGoogleLoading = true);
+    setState(() => _isLoading = true);
     try {
       await AuthService.instance.signInWithGoogle();
     } catch (error) {
       if (!mounted) return;
       _showError(authErrorMessage(error));
     } finally {
-      if (mounted) setState(() => _isGoogleLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -75,8 +61,6 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(content: Text(message)),
     );
   }
-
-  bool get _busy => _isLoading || _isGoogleLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -100,8 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Acesso exclusivo para ${InstitutionalEmailPolicy.institutionalDomain}',
+              const Text(
+                'Acesse sua conta para salvar eventos e criar avisos para o público.',
                 style: TextStyle(
                   fontSize: 14,
                   color: EventHubColors.textSecondary,
@@ -110,15 +94,18 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
               EventHubTextField(
-                label: 'E-mail institucional',
-                hint: 'nome@souunit.com.br',
+                label: 'E-mail',
+                hint: 'nome@email.com',
                 keyboardType: TextInputType.emailAddress,
                 controller: _emailController,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Informe o e-mail';
                   }
-                  return InstitutionalEmailPolicy.validationMessage(value);
+                  if (!value.contains('@')) {
+                    return 'E-mail inválido';
+                  }
+                  return null;
                 },
               ),
               const SizedBox(height: 16),
@@ -139,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Esqueci minha senha',
                 align: Alignment.centerRight,
                 compact: true,
-                onTap: _busy
+                onTap: _isLoading
                     ? null
                     : () => Navigator.of(context).push(
                           MaterialPageRoute(
@@ -151,47 +138,21 @@ class _LoginScreenState extends State<LoginScreen> {
               AuthPrimaryButton(
                 label: 'Entrar',
                 isLoading: _isLoading,
-                onPressed: _busy ? null : _login,
+                onPressed: _login,
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: EventHubColors.inputBorder)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'ou',
-                      style: TextStyle(color: EventHubColors.textSecondary),
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: EventHubColors.inputBorder)),
-                ],
-              ),
+              const AuthOrDivider(),
               const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _loginWithGoogle,
-                icon: _isGoogleLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.g_mobiledata, size: 28),
-                label: const Text('Entrar com Google'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: EventHubColors.textPrimary,
-                  side: const BorderSide(color: EventHubColors.inputBorder),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+              GoogleSignInButton(
+                label: 'Entrar com Google',
+                isLoading: _isLoading,
+                onPressed: _loginWithGoogle,
               ),
               const SizedBox(height: 20),
               AuthLinkRow(
                 prefix: 'Não tem conta?',
                 linkLabel: 'Criar conta',
-                onLinkTap: _busy
+                onLinkTap: _isLoading
                     ? null
                     : () => Navigator.of(context).push(
                           MaterialPageRoute(

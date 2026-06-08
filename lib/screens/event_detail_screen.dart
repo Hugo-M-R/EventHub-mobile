@@ -34,22 +34,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   bool get _isSaved => EventCatalog.isSaved(event.id);
 
   @override
-  void initState() {
-    super.initState();
-    EventCatalog.version.addListener(_onCatalogChanged);
-  }
-
-  @override
-  void dispose() {
-    EventCatalog.version.removeListener(_onCatalogChanged);
-    super.dispose();
-  }
-
-  void _onCatalogChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EventHubColors.scaffoldBg,
@@ -217,39 +201,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Future<void> _onInterestPressed(BuildContext context) async {
-    try {
-      await EventCatalog.saveInterest(event.id);
-      if (!context.mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const ProfileScreen(initialTabIndex: 0),
-        ),
-        (route) => false,
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível salvar o evento. Tente novamente.'),
-        ),
-      );
-    }
+  void _onInterestPressed(BuildContext context) {
+    EventCatalog.saveInterest(event.id);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const ProfileScreen(initialTabIndex: 0),
+      ),
+      (route) => false,
+    );
   }
 
-  Future<void> _onRemoveFromSaved(BuildContext context) async {
-    try {
-      await EventCatalog.removeSavedInterest(event.id);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Removido dos eventos salvos.')),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível remover o evento.')),
-      );
-    }
+  void _onRemoveFromSaved(BuildContext context) {
+    EventCatalog.removeSavedInterest(event.id);
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Removido dos eventos salvos.')),
+    );
   }
 
   Widget _buildRemoveFromSavedButton(BuildContext context) {

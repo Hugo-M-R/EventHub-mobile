@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_error_messages.dart';
 import '../services/auth_service.dart';
-import '../services/institutional_email_policy.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/auth_widgets.dart';
 import 'login_screen.dart';
@@ -57,6 +56,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<void> _registerWithGoogle() async {
+    if (!_acceptedTerms) {
+      _showError('Aceite os termos para continuar.');
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.instance.signInWithGoogle();
+    } catch (error) {
+      if (!mounted) return;
+      _showError(authErrorMessage(error));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -89,15 +104,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               EventHubTextField(
-                label: 'E-mail institucional',
-                hint: 'nome@souunit.com.br',
+                label: 'E-mail',
+                hint: 'nome@email.com',
                 keyboardType: TextInputType.emailAddress,
                 controller: _emailController,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Informe o e-mail';
                   }
-                  return InstitutionalEmailPolicy.validationMessage(value);
+                  if (!value.contains('@')) {
+                    return 'E-mail inválido';
+                  }
+                  return null;
                 },
               ),
               const SizedBox(height: 16),
@@ -161,6 +179,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'Criar minha conta',
                 isLoading: _isLoading,
                 onPressed: _createAccount,
+              ),
+              const SizedBox(height: 16),
+              const AuthOrDivider(),
+              const SizedBox(height: 16),
+              GoogleSignInButton(
+                label: 'Continuar com Google',
+                isLoading: _isLoading,
+                onPressed: _registerWithGoogle,
               ),
               const SizedBox(height: 20),
               AuthLinkRow(

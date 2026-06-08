@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_error_messages.dart';
 import '../services/auth_service.dart';
-import '../services/institutional_email_policy.dart';
 import '../theme/eventhub_colors.dart';
 import '../widgets/auth_widgets.dart';
 import 'login_screen.dart';
@@ -89,15 +88,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 24),
               EventHubTextField(
-                label: 'E-mail institucional',
-                hint: 'nome@souunit.com.br',
+                label: 'E-mail',
+                hint: 'nome@email.com',
                 keyboardType: TextInputType.emailAddress,
                 controller: _emailController,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Informe o e-mail';
                   }
-                  return InstitutionalEmailPolicy.validationMessage(value);
+                  if (!value.contains('@')) {
+                    return 'E-mail inválido';
+                  }
+                  return null;
                 },
               ),
               const SizedBox(height: 20),
