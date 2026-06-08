@@ -21,7 +21,6 @@ class Event {
   final String? description;
   final Uint8List? coverImageBytes;
   final String? createdBy;
-  final String? usuarioLogado;
   final EventProfileStatus profileStatus;
 
   Event({
@@ -38,7 +37,6 @@ class Event {
     this.description,
     this.coverImageBytes,
     this.createdBy,
-    this.usuarioLogado,
     this.profileStatus = EventProfileStatus.ativo,
   });
 
@@ -60,15 +58,13 @@ class Event {
       neighborhood: data['neighborhood'] as String?,
       description: data['description'] as String?,
       coverImageBytes: _decodeCover(data['coverImageBase64'] as String?),
-      createdBy: data['createdBy'] as String?,
-      usuarioLogado: data['usuario_logado'] as String?,
+      createdBy: data['criado_por'] as String? ?? data['createdBy'] as String?,
       profileStatus: _profileStatusFromString(data['profileStatus'] as String?),
     );
   }
 
   Map<String, dynamic> toFirestore({
     required String createdBy,
-    required String usuarioLogado,
     String? coverImageBase64,
     EventProfileStatus? profileStatus,
     bool isCreate = false,
@@ -89,11 +85,10 @@ class Event {
       if (includeCover) ...{
         if (deleteCoverImage)
           'coverImageBase64': FieldValue.delete()
-        else
-          'coverImageBase64': ?coverImageBase64,
+        else if (coverImageBase64 != null)
+          'coverImageBase64': coverImageBase64,
       },
-      'createdBy': createdBy,
-      'usuario_logado': usuarioLogado,
+      'criado_por': createdBy,
       'profileStatus': status.name,
       if (isCreate) 'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -130,7 +125,6 @@ class Event {
     String? description,
     Uint8List? coverImageBytes,
     String? createdBy,
-    String? usuarioLogado,
     EventProfileStatus? profileStatus,
     bool clearCoverImage = false,
   }) {
@@ -150,7 +144,6 @@ class Event {
           ? null
           : (coverImageBytes ?? this.coverImageBytes),
       createdBy: createdBy ?? this.createdBy,
-      usuarioLogado: usuarioLogado ?? this.usuarioLogado,
       profileStatus: profileStatus ?? this.profileStatus,
     );
   }

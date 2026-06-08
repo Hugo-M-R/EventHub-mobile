@@ -403,6 +403,120 @@ class _AuthTextLinkState extends State<AuthTextLink> {
   }
 }
 
+/// Botão "Entrar com Google" — usado nas telas de login e cadastro.
+class GoogleSignInButton extends StatelessWidget {
+  const GoogleSignInButton({
+    super.key,
+    required this.onPressed,
+    required this.label,
+    this.isLoading = false,
+  });
+
+  final VoidCallback? onPressed;
+  final String label;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = !isLoading && onPressed != null;
+    return MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: enabled ? onPressed : null,
+        child: Container(
+          width: double.infinity,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: EventHubColors.inputBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: isLoading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: EventHubColors.orangeButton,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFF4285F4),
+                            Color(0xFFEA4335),
+                            Color(0xFFFBBC05),
+                            Color(0xFF34A853),
+                          ],
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'G',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: EventHubColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Divisor "ou" entre formulário e botão de OAuth.
+class AuthOrDivider extends StatelessWidget {
+  const AuthOrDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(child: Divider(color: EventHubColors.inputBorder)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'ou',
+            style: TextStyle(
+              color: EventHubColors.textMuted,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: EventHubColors.inputBorder)),
+      ],
+    );
+  }
+}
+
 /// Linha “texto + link” com link interativo.
 class AuthLinkRow extends StatelessWidget {
   const AuthLinkRow({

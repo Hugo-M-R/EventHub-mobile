@@ -1,17 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
 
-import '../data/event_catalog.dart';
 import '../session/app_session.dart';
-import 'google_sign_in_helper.dart';
-import 'institutional_email_policy.dart';
 
-/// Autenticação via Firebase Auth (e-mail/senha e Google).
+/// Autenticação via Firebase Auth (e-mail/senha e Google) com restrição
+/// de domínio institucional.
 class AuthService {
   AuthService._();
 
   static final AuthService instance = AuthService._();
+
+  /// Domínio institucional obrigatório (regra da Atividade 3).
+  static const String allowedDomain = '@souunit.com.br';
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -35,14 +35,12 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final normalized = email.trim().toLowerCase();
-    _requireInstitutionalEmail(normalized);
-
     await _auth.signInWithEmailAndPassword(
-      email: normalized,
+      email: email.trim(),
       password: password,
     );
-    await _finalizeAuthenticatedSession();
+    await _enforceDomainOrSignOut();
+    syncSessionFromFirebase();
   }
 
   Future<void> registerWithEmail({
@@ -50,11 +48,15 @@ class AuthService {
     required String password,
     required String fullName,
   }) async {
-    final normalized = email.trim().toLowerCase();
-    _requireInstitutionalEmail(normalized);
+    final trimmedEmail = email.trim();
+    if (!trimmedEmail.toLowerCase().endsWith(allowedDomain)) {
+      throw StateError(
+        'Use seu e-mail institucional ($allowedDomain) para criar a conta.',
+      );
+    }
 
     final credential = await _auth.createUserWithEmailAndPassword(
-      email: normalized,
+      email: trimmedEmail,
       password: password,
     );
 
@@ -64,60 +66,39 @@ class AuthService {
       await credential.user?.reload();
     }
 
-    await _finalizeAuthenticatedSession();
+    syncSessionFromFirebase();
   }
 
   Future<void> signInWithGoogle() async {
-    final credential = await GoogleSignInHelper.signIn(_auth);
-    await _ensureInstitutionalUser(credential.user);
-    await _finalizeAuthenticatedSession();
+    final provider = GoogleAuthProvider();
+    if (kIsWeb) {
+      await _auth.signInWithPopup(provider);
+    } else {
+      await _auth.signInWithProvider(provider);
+    }
+    await _enforceDomainOrSignOut();
+    syncSessionFromFirebase();
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    final normalized = email.trim().toLowerCase();
-    _requireInstitutionalEmail(normalized);
-    await _auth.sendPasswordResetEmail(email: normalized);
-  }
-
-  /// Valida domínio e encerra sessão se o e-mail não for institucional.
-  Future<bool> enforceInstitutionalAccess() async {
-    final user = _auth.currentUser;
-    if (user == null) return true;
-
-    if (InstitutionalEmailPolicy.isAllowed(user.email)) {
-      return true;
-    }
-
-    await signOut();
-    return false;
+    await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
   Future<void> signOut() async {
-    await EventCatalog.stopSavedEventsSync();
-    if (!kIsWeb) {
-      await GoogleSignIn().signOut();
-    }
     await _auth.signOut();
     AppSession.clear();
   }
 
-  Future<void> _finalizeAuthenticatedSession() async {
-    await _ensureInstitutionalUser(_auth.currentUser);
-    syncSessionFromFirebase();
-    await EventCatalog.startSavedEventsSync();
-  }
-
-  Future<void> _ensureInstitutionalUser(User? user) async {
-    if (!InstitutionalEmailPolicy.isAllowed(user?.email)) {
-      await signOut();
-      throw InstitutionalEmailException();
-    }
-  }
-
-  void _requireInstitutionalEmail(String email) {
-    final message = InstitutionalEmailPolicy.validationMessage(email);
-    if (message != null) {
-      throw InstitutionalEmailException(message);
+  /// Verifica se o e-mail do usuário pertence ao domínio institucional.
+  /// Se não pertencer, desloga e lança erro com mensagem amigável.
+  Future<void> _enforceDomainOrSignOut() async {
+    final email = _auth.currentUser?.email?.toLowerCase();
+    if (email == null || !email.endsWith(allowedDomain)) {
+      await _auth.signOut();
+      AppSession.clear();
+      throw StateError(
+        'Acesso restrito a contas institucionais ($allowedDomain).',
+      );
     }
   }
 }
